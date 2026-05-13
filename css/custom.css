@@ -258,6 +258,42 @@ body {
     color: #aaa;
 }
 
+/* Date Input Wrapper */
+.date-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.date-input-wrapper input[type="date"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.date-input-wrapper .date-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Hide native icon visually but keep it clickable on top */
+.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
 /* Pills */
 .pill-group {
     display: flex;
