@@ -269,6 +269,65 @@ function initCRMForm() {
             });
         });
     }
+
+    // PWA Pull-to-Refresh Logic
+    let touchStartY = 0;
+    let isPulling = false;
+    const pwaRefreshThreshold = 80;
+    
+    const refreshIndicator = document.createElement('div');
+    refreshIndicator.className = 'pwa-refresh-indicator';
+    refreshIndicator.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-8.27l-5.67 5.67"/></svg>';
+    document.body.prepend(refreshIndicator);
+
+    document.addEventListener('touchstart', e => {
+        if (window.scrollY <= 0) {
+            touchStartY = e.touches[0].clientY;
+            isPulling = true;
+            refreshIndicator.style.transition = 'none';
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+        if (!isPulling) return;
+        const pullDistance = e.touches[0].clientY - touchStartY;
+        
+        if (pullDistance > 0 && window.scrollY <= 0) {
+            const transformY = Math.min(pullDistance / 2.5, pwaRefreshThreshold + 20);
+            refreshIndicator.style.transform = `translateY(${transformY}px) translateX(-50%) rotate(${pullDistance}deg)`;
+            refreshIndicator.style.opacity = Math.min(pullDistance / 80, 1);
+            
+            if (transformY >= pwaRefreshThreshold) {
+                refreshIndicator.classList.add('ready');
+            } else {
+                refreshIndicator.classList.remove('ready');
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', e => {
+        if (!isPulling) return;
+        isPulling = false;
+        
+        refreshIndicator.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        
+        const pullDistance = e.changedTouches[0].clientY - touchStartY;
+        const transformY = Math.min(pullDistance / 2.5, pwaRefreshThreshold + 20);
+        
+        if (transformY >= pwaRefreshThreshold && window.scrollY <= 0) {
+            refreshIndicator.classList.add('refreshing');
+            refreshIndicator.style.transform = `translateY(50px) translateX(-50%)`;
+            refreshIndicator.style.opacity = 1;
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            refreshIndicator.style.transform = `translateY(-50px) translateX(-50%) rotate(0deg)`;
+            refreshIndicator.style.opacity = 0;
+            refreshIndicator.classList.remove('ready');
+        }
+    });
+
 }
 
 if (document.readyState === 'loading') {

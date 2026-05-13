@@ -430,6 +430,39 @@ body {
     border: 1px solid #fecaca;
 }
 
+/* PWA Pull to Refresh */
+.pwa-refresh-indicator {
+    position: fixed;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    color: var(--primary);
+    pointer-events: none;
+}
+
+.pwa-refresh-indicator svg {
+    width: 20px;
+    height: 20px;
+}
+
+.pwa-refresh-indicator.ready {
+    color: #166534;
+}
+
+.pwa-refresh-indicator.refreshing svg {
+    animation: spin 1s linear infinite;
+}
+
 @media (max-width: 900px) {
     .app-container {
         margin-top: 20px;
