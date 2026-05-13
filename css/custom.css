@@ -52,6 +52,7 @@ body {
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     border: 1px solid rgba(0, 0, 0, 0.02);
+
 }
 
 .nav-tracker {
@@ -258,40 +259,31 @@ body {
     color: #aaa;
 }
 
-/* Date Input Wrapper */
-.date-input-wrapper {
+/* Date Placeholder Hack for Mobile/Tablet */
+input[type="date"] {
     position: relative;
-    width: 100%;
 }
 
-.date-input-wrapper input[type="date"] {
-    width: 100%;
-    box-sizing: border-box;
+input[type="date"]:invalid::-webkit-datetime-edit {
+    color: transparent;
 }
 
-.date-input-wrapper .date-icon {
+input[type="date"]:invalid::before {
+    content: attr(placeholder);
     position: absolute;
-    right: 12px;
+    left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: #aaa;
     pointer-events: none;
-    z-index: 1;
 }
 
-/* Hide native icon visually but keep it clickable on top */
-.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
-    z-index: 2;
+input[type="date"]:focus::-webkit-datetime-edit {
+    color: var(--text-dark) !important;
+}
+
+input[type="date"]:focus::before {
+    display: none !important;
 }
 
 /* Pills */
@@ -476,7 +468,7 @@ body {
     height: 40px;
     background: white;
     border-radius: 50%;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
