@@ -1,0 +1,12 @@
+/*
+Theme Name: CRM Custom Theme
+Author: Rohant Villarosa
+Description: a crm web app to handle the clients
+Version: 1.0
+*/
+
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+}
