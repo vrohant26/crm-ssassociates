@@ -431,7 +431,9 @@ body {
 }
 
 @media (max-width: 900px) {
-
+    .app-container {
+        margin-top: 20px;
+    }
 
     .app-layout {
         flex-direction: column;
