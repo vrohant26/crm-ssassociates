@@ -129,7 +129,40 @@ function crm_export_enquiries_csv() {
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'crm_enquiries';
-        $results = $wpdb->get_results("SELECT * FROM $table_name ORDER BY id DESC", ARRAY_A);
+        
+        $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
+        $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+        
+        $where_clauses = array();
+        $prepare_args = array();
+
+        if (!empty($search)) {
+            $where_clauses[] = "(name LIKE %s OR email LIKE %s OR contact LIKE %s)";
+            $prepare_args[] = '%' . $search . '%';
+            $prepare_args[] = '%' . $search . '%';
+            $prepare_args[] = '%' . $search . '%';
+        }
+
+        if (!empty($date_from)) {
+            $where_clauses[] = "date_visit >= %s";
+            $prepare_args[] = $date_from;
+        }
+
+        if (!empty($date_to)) {
+            $where_clauses[] = "date_visit <= %s";
+            $prepare_args[] = $date_to;
+        }
+
+        $where = '';
+        if (!empty($where_clauses)) {
+            $where = " WHERE " . implode(' AND ', $where_clauses);
+            if (!empty($prepare_args)) {
+                $where = $wpdb->prepare($where, $prepare_args);
+            }
+        }
+
+        $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY id DESC", ARRAY_A);
 
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="enquiries-' . date('Y-m-d') . '.csv"');
@@ -138,7 +171,6 @@ function crm_export_enquiries_csv() {
         if (!empty($results)) {
             fputcsv($output, array_keys($results[0]));
             foreach ($results as $row) {
-                // don't export full base64 signature string in CSV
                 $row['signature'] = !empty($row['signature']) ? 'Yes' : 'No';
                 fputcsv($output, $row);
             }
@@ -153,38 +185,89 @@ function crm_enquiries_page_html() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'crm_enquiries';
 
-    // Search term
     $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
-    $where = '';
+    $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
+    $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+    
+    $where_clauses = array();
+    $prepare_args = array();
+
     if (!empty($search)) {
-        $where = $wpdb->prepare(" WHERE name LIKE %s OR email LIKE %s OR contact LIKE %s", '%' . $search . '%', '%' . $search . '%', '%' . $search . '%');
+        $where_clauses[] = "(name LIKE %s OR email LIKE %s OR contact LIKE %s)";
+        $prepare_args[] = '%' . $search . '%';
+        $prepare_args[] = '%' . $search . '%';
+        $prepare_args[] = '%' . $search . '%';
+    }
+
+    if (!empty($date_from)) {
+        $where_clauses[] = "date_visit >= %s";
+        $prepare_args[] = $date_from;
+    }
+
+    if (!empty($date_to)) {
+        $where_clauses[] = "date_visit <= %s";
+        $prepare_args[] = $date_to;
+    }
+
+    $where = '';
+    if (!empty($where_clauses)) {
+        $where = " WHERE " . implode(' AND ', $where_clauses);
+        if (!empty($prepare_args)) {
+            $where = $wpdb->prepare($where, $prepare_args);
+        }
     }
 
     $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY id DESC");
 
+    $export_url = add_query_arg(array(
+        'page' => 'crm-enquiries',
+        'export_csv' => '1',
+        's' => $search,
+        'date_from' => $date_from,
+        'date_to' => $date_to
+    ), admin_url('admin.php'));
+
     echo '<div class="wrap">';
     echo '<h1 class="wp-heading-inline">Enquiries</h1>';
-    echo '<a href="?page=crm-enquiries&export_csv=1" class="page-title-action">Export CSV</a>';
+    echo '<a href="' . esc_url($export_url) . '" class="page-title-action">Export CSV</a>';
     echo '<hr class="wp-header-end">';
 
-    echo '<form method="get">';
+    echo '<form method="get" style="display:flex; gap:15px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap;">';
     echo '<input type="hidden" name="page" value="crm-enquiries">';
-    echo '<p class="search-box">';
-    echo '<label class="screen-reader-text" for="post-search-input">Search Enquiries:</label>';
-    echo '<input type="search" id="post-search-input" name="s" value="' . esc_attr($search) . '">';
-    echo '<input type="submit" id="search-submit" class="button" value="Search Enquiries">';
-    echo '</p>';
+    
+    echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="post-search-input">Search:</label>';
+    echo '<input type="search" id="post-search-input" name="s" value="' . esc_attr($search) . '" placeholder="Name, Email, Contact...">';
+    echo '</div>';
+    
+    echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="date_from">From Date:</label>';
+    echo '<input type="date" id="date_from" name="date_from" value="' . esc_attr($date_from) . '">';
+    echo '</div>';
+
+    echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="date_to">To Date:</label>';
+    echo '<input type="date" id="date_to" name="date_to" value="' . esc_attr($date_to) . '">';
+    echo '</div>';
+
+    echo '<div>';
+    echo '<input type="submit" id="search-submit" class="button button-primary" value="Filter">';
+    if (!empty($search) || !empty($date_from) || !empty($date_to)) {
+        echo ' <a href="?page=crm-enquiries" class="button">Clear</a>';
+    }
+    echo '</div>';
+    
     echo '</form>';
 
     echo '<table class="wp-list-table widefat fixed striped table-view-list" style="margin-top: 15px;">';
     echo '<thead><tr>';
-    echo '<th>Date</th><th>Name</th><th>Contact</th><th>Email</th><th>Config</th><th>Budget</th><th>Source</th>';
+    echo '<th>Date</th><th>Name</th><th>Contact</th><th>Email</th><th>Config</th><th>Budget</th><th>Source</th><th>Partner</th>';
     echo '</tr></thead>';
     echo '<tbody>';
     if ($results) {
         foreach ($results as $row) {
             echo '<tr>';
-            echo '<td>' . esc_html(date('Y-m-d H:i', strtotime($row->created_at))) . '</td>';
+            echo '<td>' . esc_html(date('d M Y', strtotime($row->date_visit))) . '</td>';
             echo '<td><strong>' . esc_html($row->name) . '</strong><br><small>' . esc_html($row->occupation) . '</small></td>';
             echo '<td>' . esc_html($row->contact) . '</td>';
             echo '<td>' . esc_html($row->email) . '</td>';
@@ -196,10 +279,18 @@ function crm_enquiries_page_html() {
                 $source_display .= '<br><small>(' . esc_html($row->reference_name) . ')</small>';
             }
             echo '<td>' . $source_display . '</td>';
+
+            $cp_display = esc_html($row->cp_name);
+            if (!empty($row->cp_contact)) {
+                $cp_display .= '<br><small>' . esc_html($row->cp_contact) . '</small>';
+            }
+            if (empty($cp_display)) $cp_display = '-';
+            echo '<td>' . $cp_display . '</td>';
+
             echo '</tr>';
         }
     } else {
-        echo '<tr><td colspan="7">No enquiries found.</td></tr>';
+        echo '<tr><td colspan="8">No enquiries found.</td></tr>';
     }
     echo '</tbody></table>';
     echo '</div>';

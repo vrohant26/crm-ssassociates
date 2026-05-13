@@ -1,7 +1,9 @@
 <?php get_header(); ?>
 
 <main class="site-main app-main">
+   
     <div class="app-layout">
+        
         <aside class="sidebar-nav">
             <ul class="nav-tracker">
                 <li class="nav-step active" data-target="section-basic">
@@ -32,6 +34,7 @@
         </aside>
 
         <div class="app-container">
+             
             <form id="enquiry-form" class="enquiry-form" method="POST">
             
             <div class="form-section card" id="section-basic">
