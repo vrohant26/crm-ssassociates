@@ -53,15 +53,21 @@ add_action('after_setup_theme', 'crm_create_enquiries_table');
 
 // Setup Custom Roles
 function crm_setup_client_role() {
-    // Remove the old role if present
+    // Remove the old roles if present
     remove_role('crm_client');
+    remove_role('crm_site_head');
 
     add_role(
         'site_manager',
         'Site Manager',
         array(
             'read' => true,
-            'view_crm_enquiries' => true
+            'view_crm_enquiries' => true,
+            'create_users' => true,
+            'edit_users' => true,
+            'list_users' => true,
+            'promote_users' => true,
+            'delete_users' => true
         )
     );
 
@@ -73,28 +79,16 @@ function crm_setup_client_role() {
         )
     );
 
-    add_role(
-        'crm_site_head',
-        'Site Head',
-        array(
-            'read' => true,
-            'create_users' => true,
-            'edit_users' => true,
-            'list_users' => true,
-            'promote_users' => true,
-            'delete_users' => true
-        )
-    );
-
     // Explicitly add capabilities in case the role was already created
-    $site_head_role = get_role('crm_site_head');
-    if ($site_head_role) {
-        $site_head_role->add_cap('read');
-        $site_head_role->add_cap('create_users');
-        $site_head_role->add_cap('edit_users');
-        $site_head_role->add_cap('list_users');
-        $site_head_role->add_cap('promote_users');
-        $site_head_role->add_cap('delete_users');
+    $site_manager_role = get_role('site_manager');
+    if ($site_manager_role) {
+        $site_manager_role->add_cap('read');
+        $site_manager_role->add_cap('view_crm_enquiries');
+        $site_manager_role->add_cap('create_users');
+        $site_manager_role->add_cap('edit_users');
+        $site_manager_role->add_cap('list_users');
+        $site_manager_role->add_cap('promote_users');
+        $site_manager_role->add_cap('delete_users');
     }
 
     $role = get_role('administrator');
@@ -128,11 +122,6 @@ function crm_restrict_client_menu() {
         if (in_array('site_manager', $user->roles) || in_array('crm_closing_manager', $user->roles)) {
             remove_menu_page('index.php'); // Hide Dashboard
             remove_menu_page('profile.php'); // Hide Profile
-        } elseif (in_array('crm_site_head', $user->roles)) {
-            remove_menu_page('index.php'); // Hide Dashboard
-            remove_menu_page('edit.php'); // Hide Posts (if visible)
-            remove_menu_page('edit-comments.php'); // Hide Comments (if visible)
-            remove_menu_page('tools.php'); // Hide Tools (if visible)
         }
     }
 }
@@ -163,19 +152,16 @@ function crm_site_manager_login_redirect($redirect_to, $request, $user) {
         if (in_array('crm_closing_manager', $user->roles)) {
             return home_url('/closing-manager/');
         }
-        if (in_array('crm_site_head', $user->roles)) {
-            return admin_url('users.php');
-        }
     }
     return $redirect_to;
 }
 add_filter('login_redirect', 'crm_site_manager_login_redirect', 10, 3);
 
-// Limit editable roles for Site Head so they can only manage "Closing Manager" and "Site Head"
-function crm_restrict_editable_roles_for_site_head($roles) {
+// Limit editable roles for Site Manager so they can only manage "Closing Manager" and "Site Manager"
+function crm_restrict_editable_roles_for_site_manager($roles) {
     $user = wp_get_current_user();
-    if (in_array('crm_site_head', $user->roles) && !current_user_can('manage_options')) {
-        $allowed = array('crm_closing_manager', 'crm_site_head');
+    if (in_array('site_manager', $user->roles) && !current_user_can('manage_options')) {
+        $allowed = array('crm_closing_manager', 'site_manager');
         foreach ($roles as $role_key => $role_data) {
             if (!in_array($role_key, $allowed)) {
                 unset($roles[$role_key]);
@@ -184,18 +170,18 @@ function crm_restrict_editable_roles_for_site_head($roles) {
     }
     return $roles;
 }
-add_filter('editable_roles', 'crm_restrict_editable_roles_for_site_head');
+add_filter('editable_roles', 'crm_restrict_editable_roles_for_site_manager');
 
-// Restrict user list in wp-admin for Site Head to see only Closing Managers and Site Heads
-function crm_restrict_user_list_for_site_head($query) {
+// Restrict user list in wp-admin for Site Manager to see only Closing Managers and Site Managers
+function crm_restrict_user_list_for_site_manager($query) {
     if (is_admin()) {
         $user = wp_get_current_user();
-        if (in_array('crm_site_head', $user->roles) && !current_user_can('manage_options')) {
-            $query->set('role__in', array('crm_closing_manager', 'crm_site_head'));
+        if (in_array('site_manager', $user->roles) && !current_user_can('manage_options')) {
+            $query->set('role__in', array('crm_closing_manager', 'site_manager'));
         }
     }
 }
-add_action('pre_get_users', 'crm_restrict_user_list_for_site_head');
+add_action('pre_get_users', 'crm_restrict_user_list_for_site_manager');
 
 // Handle Frontend Login Failures elegant redirect
 add_action('wp_login_failed', function($username) {
