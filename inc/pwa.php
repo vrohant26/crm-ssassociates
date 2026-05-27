@@ -24,6 +24,7 @@ function crm_pwa_template_redirect() {
 const CACHE_NAME = 'crm-app-v1';
 const urlsToCache = [
   '/',
+  '<?php echo home_url('/closing-manager/'); ?>',
   '<?php echo get_template_directory_uri(); ?>/css/custom.css',
   '<?php echo get_template_directory_uri(); ?>/js/custom.js'
 ];
@@ -50,12 +51,21 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    })
+    fetch(event.request)
+      .then(networkResponse => {
+        // Cache dynamic assets dynamically for offline fallback
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Fallback to cache if network fails (offline state)
+        return caches.match(event.request);
+      })
   );
 });
         <?php

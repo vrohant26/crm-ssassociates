@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --primary: #2572FC;
-    --primary-hover: #1e5cc9;
+    --primary: #d4af37;
+    --primary-hover: #b5952f;
     --text-dark: #222222;
     --text-light: #666666;
     --bg-color: #f8f9fa;
@@ -129,7 +129,7 @@ body {
 .nav-step.completed .step-icon {
     border-color: var(--primary);
     color: var(--primary);
-    background: rgb(215 229 255);
+    background: #fff5d6;
 }
 
 .nav-step.active .step-label {
@@ -235,7 +235,7 @@ body {
     outline: none;
     border-color: var(--primary);
     background: white;
-    box-shadow: 0 0 0 3px rgba(37, 114, 252, 0.15);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
 }
 
 .input-group input::placeholder {
@@ -474,6 +474,42 @@ input[type="date"]:focus::before {
     animation: spin 1s linear infinite;
 }
 
+.form-main-header {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.form-main-title {
+    font-size: 1.8rem;
+    color: var(--text-dark);
+    margin: 0;
+    font-weight: 600;
+    line-height: 100%;
+}
+
+.form-logo {
+    max-width: 100px;
+    margin-bottom: 1rem;
+    height: auto;
+    border-radius: 10px;
+}
+
+.step-count {
+    margin-left: auto;
+    color: #bebebe;
+    font-weight: 400;
+    font-size: 1.15rem;
+    align-self: center;
+}
+
+.optional-text {
+    font-weight: normal;
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
 @media (max-width: 900px) {
     .app-container {
         margin-top: 20px;
@@ -546,4 +582,50 @@ input[type="date"]:focus::before {
     .card {
         padding: 1.5rem;
     }
+}
+
+/* Custom Select styles */
+.select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select {
+    width: 100%;
+    padding: 0.8rem 2.5rem 0.8rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: var(--bg-color);
+    color: var(--text-dark);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+}
+
+.custom-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.select-arrow {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    transition: color 0.3s ease;
+}
+
+.custom-select:focus + .select-arrow {
+    color: var(--primary);
 }

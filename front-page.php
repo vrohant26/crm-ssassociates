@@ -4,39 +4,55 @@
    
     <div class="app-layout">
         
-        <aside class="sidebar-nav">
-            <ul class="nav-tracker">
-                <li class="nav-step active" data-target="section-basic">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
-                    <span class="step-label">Basic Info</span>
-                </li>
-                <li class="nav-step" data-target="section-occupation">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></div>
-                    <span class="step-label">Occupation</span>
-                </li>
-                <li class="nav-step" data-target="section-property">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></div>
-                    <span class="step-label">Property</span>
-                </li>
-                <li class="nav-step" data-target="section-source">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" x2="4" y1="22" y2="15"></line></svg></div>
-                    <span class="step-label">Source</span>
-                </li>
-                <li class="nav-step" data-target="section-partner">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
-                    <span class="step-label">Partner</span>
-                </li>
-                <li class="nav-step" data-target="section-signature">
-                    <div class="step-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></div>
-                    <span class="step-label">Signature</span>
-                </li>
-            </ul>
-        </aside>
+
 
         <div class="app-container">
              
+            <div class="form-main-header">
+               
+                <img src="<?php echo get_template_directory_uri(); ?>/pearl-grace-logo.png" alt="Pearl Grace Logo" class="form-logo">
+            </div>
+
             <form id="enquiry-form" class="enquiry-form" method="POST">
             
+            <?php
+            $closing_managers = get_users(array(
+                'role' => 'crm_closing_manager',
+                'orderby' => 'display_name',
+                'order' => 'ASC'
+            ));
+            ?>
+            <div class="form-section card" id="section-manager">
+                <div class="section-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                    <div class="section-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <div class="section-title">
+                        <h3>Closing Manager</h3>
+                        <p>Select the Closing Manager handling this client.</p>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 1.5rem;">
+                    <div class="select-wrapper">
+                        <select name="closing_manager_id" id="closing-manager-select" required class="custom-select">
+                            <option value="" disabled selected>Choose a Closing Manager...</option>
+                            <?php if (!empty($closing_managers)) : ?>
+                                <?php foreach ($closing_managers as $manager) : ?>
+                                    <option value="<?php echo esc_attr($manager->ID); ?>">
+                                        <?php echo esc_html($manager->display_name); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php else : ?>
+                                <option value="" disabled>No Closing Managers found</option>
+                            <?php endif; ?>
+                        </select>
+                        <div class="select-arrow">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-section card" id="section-basic">
                 <div class="section-header">
                     <div class="section-icon">
@@ -46,6 +62,7 @@
                         <h3>Basic Information</h3>
                         <p>Please provide your personal contact details.</p>
                     </div>
+                    <div class="step-count">(1/6)</div>
                 </div>
                 <div class="form-grid">
                     <div class="input-group">
@@ -80,6 +97,7 @@
                         <h3>Occupation</h3>
                         <p>Tell us about your professional background.</p>
                     </div>
+                    <div class="step-count">(2/6)</div>
                 </div>
                 <div class="pill-group" id="occupation-pills">
                     <button type="button" class="pill" data-value="Service">Service</button>
@@ -110,6 +128,7 @@
                         <h3>Property Requirements</h3>
                         <p>What kind of property are you looking for?</p>
                     </div>
+                    <div class="step-count">(3/6)</div>
                 </div>
                 <label class="section-label">Configuration</label>
                 <div class="pill-group" id="config-pills">
@@ -123,6 +142,10 @@
                     <button type="button" class="pill" data-value="70 L to 85 L">70 L to 85 L</button>
                     <button type="button" class="pill" data-value="85 L to 1 CR">85 L to 1 CR</button>
                     <button type="button" class="pill" data-value="1 CR to 1.25 CR">1 CR to 1.25 CR</button>
+                    <button type="button" class="pill" data-value="1.25 CR to 1.50 CR">1.25 CR to 1.50 CR</button>
+                    <button type="button" class="pill" data-value="1.50 CR to 1.75 CR">1.50 CR to 1.75 CR</button>
+                    <button type="button" class="pill" data-value="1.75 CR to 2.00 CR">1.75 CR to 2.00 CR</button>
+                    <button type="button" class="pill" data-value="2.00 CR to 2.25 CR">2.00 CR to 2.25 CR</button>
                 </div>
                 <input type="hidden" name="budget" id="budget-input" required>
             </div>
@@ -136,6 +159,7 @@
                         <h3>How did you hear about us?</h3>
                         <p>Help us understand where you found us.</p>
                     </div>
+                    <div class="step-count">(4/6)</div>
                 </div>
                 <div class="pill-group" id="source-pills">
                     <button type="button" class="pill" data-value="Newspaper">Newspaper</button>
@@ -158,9 +182,10 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     </div>
                     <div class="section-title">
-                        <h3>Channel Partner <span style="font-weight: normal; font-size: 0.9rem; color: #94a3b8;">(Optional)</span></h3>
+                        <h3>Channel Partner <span class="optional-text">(Optional)</span></h3>
                         <p>Details of the channel partner assisting you.</p>
                     </div>
+                    <div class="step-count">(5/6)</div>
                 </div>
                 <div class="form-grid">
                     <div class="input-group">
@@ -183,6 +208,7 @@
                         <h3>Customer Signature</h3>
                         <p>Please sign to confirm your enquiry.</p>
                     </div>
+                    <div class="step-count">(6/6)</div>
                 </div>
                 <div class="signature-wrapper">
                     <canvas id="signature-pad"></canvas>

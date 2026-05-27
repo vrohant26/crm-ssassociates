@@ -35,70 +35,7 @@ function initCRMForm() {
         }
     });
 
-    // Scroll Tracker Logic
-    const sections = document.querySelectorAll('.form-section');
-    const navSteps = document.querySelectorAll('.nav-step');
-    const tracker = document.querySelector('.nav-tracker');
-    
-    if (sections.length && navSteps.length && tracker) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const currentId = entry.target.id;
-                    let activeIndex = 0;
-                    
-                    navSteps.forEach((step, index) => {
-                        step.classList.remove('active', 'completed');
-                        if (step.dataset.target === currentId) {
-                            step.classList.add('active');
-                            activeIndex = index;
-                        }
-                    });
-                    
-                    navSteps.forEach((step, index) => {
-                        if (index < activeIndex) {
-                            step.classList.add('completed');
-                        }
-                    });
-                    
-                    // Calculate line height/width
-                    const p = activeIndex / (navSteps.length - 1);
-                    tracker.style.setProperty('--tracker-progress', p);
-                }
-            });
-        }, {
-            rootMargin: '-20% 0px -60% 0px',
-            threshold: 0
-        });
-        
-        sections.forEach(sec => observer.observe(sec));
 
-        // Fallback for reaching the absolute bottom of the page
-        window.addEventListener('scroll', () => {
-            if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 10) {
-                navSteps.forEach(s => s.classList.remove('active', 'completed'));
-                navSteps.forEach((step, index) => {
-                    if (index === navSteps.length - 1) {
-                        step.classList.add('active');
-                    } else {
-                        step.classList.add('completed');
-                    }
-                });
-                tracker.style.setProperty('--tracker-progress', 1);
-            }
-        });
-
-        // Allow clicking on sidebar to scroll to section
-        navSteps.forEach(step => {
-            step.addEventListener('click', () => {
-                const targetId = step.dataset.target;
-                const targetSection = document.getElementById(targetId);
-                if (targetSection) {
-                    targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        });
-    }
 
     // Signature Pad logic
     const canvas = document.getElementById('signature-pad');
@@ -182,12 +119,14 @@ function initCRMForm() {
             e.preventDefault();
             
             // Validation
+            const closingManager = document.getElementById('closing-manager-select').value;
             const occupation = document.getElementById('occupation-input').value;
             const config = document.getElementById('config-input').value;
             const budget = document.getElementById('budget-input').value;
             const source = document.getElementById('source-input').value;
             
             let errors = [];
+            if(!closingManager) errors.push('Please select a Closing Manager.');
             if(!occupation) errors.push('Please select Occupation.');
             if(!config) errors.push('Please select Configuration.');
             if(!budget) errors.push('Please select Budget.');
@@ -238,6 +177,7 @@ function initCRMForm() {
                     form.reset();
                     // Reset pills
                     document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                    document.getElementById('closing-manager-select').value = '';
                     document.getElementById('occupation-input').value = '';
                     document.getElementById('config-input').value = '';
                     document.getElementById('budget-input').value = '';
