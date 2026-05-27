@@ -107,6 +107,22 @@ function crm_restrict_client_menu() {
 }
 add_action('admin_menu', 'crm_restrict_client_menu', 999);
 
+// Hide Admin Bar on Frontend for all users to protect PWA experience
+add_filter('show_admin_bar', '__return_false');
+
+// Hide default WordPress header/logo on the wp-login.php page
+function crm_custom_login_header() {
+    echo '<style type="text/css">
+        #login h1 a, .login h1 a {
+            display: none !important;
+        }
+        #login {
+            padding: 4% 0 0 !important;
+        }
+    </style>';
+}
+add_action('login_enqueue_scripts', 'crm_custom_login_header');
+
 // Redirect Client on Login
 function crm_site_manager_login_redirect($redirect_to, $request, $user) {
     if (isset($user->roles) && is_array($user->roles)) {
