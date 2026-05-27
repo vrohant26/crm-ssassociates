@@ -3,6 +3,7 @@
 function crm_pwa_rewrite_rules() {
     add_rewrite_rule('^sw\.js$', 'index.php?crm_sw=1', 'top');
     add_rewrite_rule('^manifest\.json$', 'index.php?crm_manifest=1', 'top');
+    add_rewrite_rule('^manifest-manager\.json$', 'index.php?crm_manifest=manager', 'top');
 }
 add_action('init', 'crm_pwa_rewrite_rules');
 
@@ -74,26 +75,51 @@ self.addEventListener('fetch', event => {
 
     if (get_query_var('crm_manifest')) {
         header('Content-Type: application/json');
-        echo json_encode(array(
-            'name' => 'CRM Enquiry App',
-            'short_name' => 'CRM App',
-            'start_url' => home_url('/'),
-            'display' => 'standalone',
-            'background_color' => '#ffffff',
-            'theme_color' => '#2572FC',
-            'icons' => array(
-                array(
-                    'src' => get_template_directory_uri() . '/icon-192.png',
-                    'sizes' => '192x192',
-                    'type' => 'image/png'
-                ),
-                array(
-                    'src' => get_template_directory_uri() . '/icon-512.png',
-                    'sizes' => '512x512',
-                    'type' => 'image/png'
+        $manifest_type = get_query_var('crm_manifest');
+
+        if ($manifest_type === 'manager') {
+            echo json_encode(array(
+                'name' => 'Closing Manager Portal',
+                'short_name' => 'Manager CRM',
+                'start_url' => home_url('/closing-manager/'),
+                'display' => 'standalone',
+                'background_color' => '#f8f9fa',
+                'theme_color' => '#d4af37',
+                'icons' => array(
+                    array(
+                        'src' => get_template_directory_uri() . '/icon-192.png',
+                        'sizes' => '192x192',
+                        'type' => 'image/png'
+                    ),
+                    array(
+                        'src' => get_template_directory_uri() . '/icon-512.png',
+                        'sizes' => '512x512',
+                        'type' => 'image/png'
+                    )
                 )
-            )
-        ));
+            ));
+        } else {
+            echo json_encode(array(
+                'name' => 'CRM Enquiry App',
+                'short_name' => 'CRM App',
+                'start_url' => home_url('/'),
+                'display' => 'standalone',
+                'background_color' => '#ffffff',
+                'theme_color' => '#2572FC',
+                'icons' => array(
+                    array(
+                        'src' => get_template_directory_uri() . '/icon-192.png',
+                        'sizes' => '192x192',
+                        'type' => 'image/png'
+                    ),
+                    array(
+                        'src' => get_template_directory_uri() . '/icon-512.png',
+                        'sizes' => '512x512',
+                        'type' => 'image/png'
+                    )
+                )
+            ));
+        }
         exit;
     }
 }
@@ -101,8 +127,13 @@ add_action('template_redirect', 'crm_pwa_template_redirect');
 
 // 4. Inject tags into wp_head
 function crm_pwa_head_tags() {
-    echo '<link rel="manifest" href="' . home_url('/manifest.json') . '">';
-    echo '<meta name="theme-color" content="#2572FC">';
+    if (is_page('closing-manager')) {
+        echo '<link rel="manifest" href="' . home_url('/manifest-manager.json') . '">';
+        echo '<meta name="theme-color" content="#d4af37">';
+    } else {
+        echo '<link rel="manifest" href="' . home_url('/manifest.json') . '">';
+        echo '<meta name="theme-color" content="#2572FC">';
+    }
     echo '<link rel="apple-touch-icon" href="' . get_template_directory_uri() . '/icon-192.png">';
 }
 add_action('wp_head', 'crm_pwa_head_tags');
@@ -129,8 +160,8 @@ add_action('wp_footer', 'crm_pwa_register_sw');
 
 // 6. Flush rules once automatically so it works immediately
 add_action('init', function() {
-    if (!get_option('crm_pwa_rules_flushed')) {
+    if (!get_option('crm_pwa_rules_flushed_v2')) {
         flush_rewrite_rules();
-        update_option('crm_pwa_rules_flushed', 1);
+        update_option('crm_pwa_rules_flushed_v2', 1);
     }
 }, 99);
