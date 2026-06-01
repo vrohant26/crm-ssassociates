@@ -25,6 +25,11 @@ function initCRMForm() {
     setupPills('source-pills', 'source-input', function(value) {
         const refWrapper = document.getElementById('reference-wrapper');
         const refInput = document.getElementById('reference-name-input');
+        const partnerWrapper = document.getElementById('channel-partner-wrapper');
+        const cpNameInput = document.getElementById('cp-name-input');
+        const cpContactInput = document.getElementById('cp-contact-input');
+
+        // Reference Toggle
         if (value === 'Reference') {
             refWrapper.classList.remove('hidden');
             refInput.setAttribute('required', 'required');
@@ -32,6 +37,19 @@ function initCRMForm() {
             refWrapper.classList.add('hidden');
             refInput.removeAttribute('required');
             refInput.value = '';
+        }
+
+        // Channel Partner Toggle
+        if (value === 'Channel Partner') {
+            if (partnerWrapper) partnerWrapper.classList.remove('hidden');
+            if (cpNameInput) cpNameInput.setAttribute('required', 'required');
+        } else {
+            if (partnerWrapper) partnerWrapper.classList.add('hidden');
+            if (cpNameInput) {
+                cpNameInput.removeAttribute('required');
+                cpNameInput.value = '';
+            }
+            if (cpContactInput) cpContactInput.value = '';
         }
     });
 
@@ -188,6 +206,14 @@ function initCRMForm() {
                     if (refWrapper) {
                         refWrapper.classList.add('hidden');
                         document.getElementById('reference-name-input').removeAttribute('required');
+                    }
+
+                    // Hide channel partner wrapper
+                    const partnerWrapper = document.getElementById('channel-partner-wrapper');
+                    if (partnerWrapper) {
+                        partnerWrapper.classList.add('hidden');
+                        const cpNameInput = document.getElementById('cp-name-input');
+                        if (cpNameInput) cpNameInput.removeAttribute('required');
                     }
 
                     // Clear signature

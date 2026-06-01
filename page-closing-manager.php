@@ -281,7 +281,7 @@ get_header();
                 .status-hot { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
                 .status-warm { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
                 .status-cold { background: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
-                .status-gold { background: #faf5ff; color: #a855f7; border: 1px solid #f3e8ff; }
+                .status-lost { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
                 .status-none { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
                 .signature-preview-box {
@@ -390,18 +390,18 @@ get_header();
                     border-color: #0284c7 !important;
                 }
 
-                .pill.pill-gold {
-                    border-color: #e9d5ff !important;
-                    color: #a855f7 !important;
+                .pill.pill-lost {
+                    border-color: #cbd5e1 !important;
+                    color: #64748b !important;
                     background: transparent;
                 }
-                .pill.pill-gold:hover {
-                    background: #faf5ff !important;
+                .pill.pill-lost:hover {
+                    background: #f1f5f9 !important;
                 }
-                .pill.pill-gold.active {
-                    background: #a855f7 !important;
+                .pill.pill-lost.active {
+                    background: #64748b !important;
                     color: white !important;
-                    border-color: #a855f7 !important;
+                    border-color: #64748b !important;
                 }
 
                 @media (max-width: 900px) {
@@ -409,13 +409,70 @@ get_header();
                         grid-template-columns: 1fr !important;
                     }
                 }
+
+                /* Timeline styles */
+                .crm-timeline {
+                    position: relative;
+                    padding-left: 1.5rem;
+                    margin-bottom: 2rem;
+                    border-left: 2px solid #e2e8f0;
+                }
+                .crm-timeline-item {
+                    position: relative;
+                    margin-bottom: 1.5rem;
+                }
+                .crm-timeline-item:last-child {
+                    margin-bottom: 0;
+                }
+                .crm-timeline-dot {
+                    position: absolute;
+                    left: calc(-1.5rem - 6px);
+                    top: 4px;
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: #d4af37;
+                    border: 2px solid #ffffff;
+                    box-shadow: 0 0 0 2px #d4af37;
+                }
+                .crm-timeline-content {
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 1rem;
+                }
+                .crm-timeline-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5rem;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+                .crm-timeline-sm {
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    color: #1e293b;
+                }
+                .crm-timeline-date {
+                    font-size: 0.8rem;
+                    color: #64748b;
+                    font-weight: 500;
+                }
+                .crm-timeline-remarks {
+                    font-size: 0.9rem;
+                    color: #475569;
+                    line-height: 1.5;
+                    margin: 0;
+                    white-space: pre-wrap;
+                }
             </style>
 
                 <div class="crm-portal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 15px;">
                     <div>
                         <a href="<?php echo esc_url(home_url('/closing-manager/')); ?>" style="display: inline-flex; align-items: center; gap: 8px; color: #d4af37; text-decoration: none; font-weight: 600; font-size: 1rem; transition: color 0.2s;" onmouseover="this.style.color='#b5952f'" onmouseout="this.style.color='#d4af37'">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                            ← Back to Portfolio
+                             Back to Portfolio
                         </a>
                         <h1 style="font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0.5rem 0 0.25rem 0;">Client Assessment Sheet</h1>
                         <p style="color: #64748b; font-size: 0.95rem; margin: 0;">Evaluating: <strong style="color: #1e293b;"><?php echo esc_html($single_client->name); ?></strong></p>
@@ -516,7 +573,7 @@ get_header();
                                     <button type="button" class="pill pill-hot <?php echo ($rating === 'Hot') ? 'active' : ''; ?>" data-value="Hot">Hot</button>
                                     <button type="button" class="pill pill-warm <?php echo ($rating === 'Warm') ? 'active' : ''; ?>" data-value="Warm">Warm</button>
                                     <button type="button" class="pill pill-cold <?php echo ($rating === 'Cold') ? 'active' : ''; ?>" data-value="Cold">Cold</button>
-                                    <button type="button" class="pill pill-gold <?php echo ($rating === 'Gold') ? 'active' : ''; ?>" data-value="Gold">Gold</button>
+                                    <button type="button" class="pill pill-lost <?php echo ($rating === 'Lost') ? 'active' : ''; ?>" data-value="Lost">Lost</button>
                                 </div>
 
                                 <div class="form-grid mt-3">
@@ -598,17 +655,33 @@ get_header();
                                     </div>
                                 </div>
                             </div>
-
+                                            <?php
+                            global $wpdb;
+                            $followups_table = $wpdb->prefix . 'crm_followups';
+                            $followup_history = $wpdb->get_results($wpdb->prepare(
+                                "SELECT * FROM $followups_table WHERE enquiry_id = %d ORDER BY created_at DESC",
+                                $single_client->id
+                            ));
+                            ?>
                             <div class="form-section card">
-                                <div class="section-header">
-                                    <div class="section-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div class="section-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                        </div>
+                                        <div class="section-title">
+                                            <h3>Schedule Next Follow-Up</h3>
+                                            <p>Set a follow-up action plan with a sales representative.</p>
+                                        </div>
                                     </div>
-                                    <div class="section-title">
-                                        <h3>Schedule Next Follow-Up</h3>
-                                        <p>Set a follow-up action plan with a sales representative.</p>
-                                    </div>
+                                    <button type="button" id="btn-add-action-plan" class="crm-btn crm-btn-secondary" style="font-size: 0.85rem; padding: 6px 14px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--crm-gold, #d4af37); color: var(--crm-gold-dark, #b5952f); background: #fffbeb; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='#fef3c7';" onmouseout="this.style.background='#fffbeb';">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        Add Action Details
+                                    </button>
                                 </div>
+
+                            
+
                                 <div class="form-grid">
                                     <div class="input-group">
                                         <label>Sales Manager (S.M)</label>
@@ -623,6 +696,18 @@ get_header();
                                         <textarea name="next_action_remarks" id="form-next-remarks" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->next_action_remarks); ?></textarea>
                                     </div>
                                 </div>
+                                    <?php if (!empty($followup_history)) : ?>
+                                    <div style="border: none; padding-top: 1.5rem; margin-top: 1.5rem; width: 100%;">
+                                        <label class="section-label" style="margin-bottom: 0.8rem; display: block; font-weight: 700; color: var(--crm-gold-dark, #b5952f);">Follow-Up History & Timeline</label>
+                                        <ul style="list-style-type: disc; padding-left: 1.5rem; margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">
+                                            <?php foreach ($followup_history as $history) : ?>
+                                                <li style="margin-bottom: 8px;">
+                                                    <strong style="color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($history->action_date))); ?></strong> - <?php echo esc_html($history->remarks); ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -684,6 +769,22 @@ get_header();
                         setupPills('visit-type-pills', 'form-visit-type');
                         setupPills('visit-attended-pills', 'form-visit-attended-by');
                         setupPills('funding-source-pills', 'form-funding-source');
+
+                        // Add Action Plan Details listener
+                        const btnAddActionPlan = document.getElementById('btn-add-action-plan');
+                        if (btnAddActionPlan) {
+                            btnAddActionPlan.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const dateInput = document.getElementById('form-next-date');
+                                const remarksInput = document.getElementById('form-next-remarks');
+                                if (dateInput && remarksInput) {
+                                    dateInput.value = '';
+                                    remarksInput.value = '';
+                                    dateInput.focus();
+                                    showToast('Previous plan scheduled for archiving. You can now schedule a new action plan.', 'success');
+                                }
+                            });
+                        }
 
                         // Secure AJAX Form saving
                         form.addEventListener('submit', function(e) {

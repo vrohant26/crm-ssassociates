@@ -3,6 +3,7 @@
 function crm_create_enquiries_table() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'crm_enquiries';
+    $followups_table = $wpdb->prefix . 'crm_followups';
     $charset_collate = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE $table_name (
@@ -44,8 +45,21 @@ function crm_create_enquiries_table() {
         PRIMARY KEY  (id)
     ) $charset_collate;";
 
+    $sql_followups = "CREATE TABLE $followups_table (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        enquiry_id bigint(20) NOT NULL,
+        created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+        s_m varchar(255) DEFAULT '' NOT NULL,
+        action_date date DEFAULT '0000-00-00' NOT NULL,
+        remarks text NOT NULL,
+        added_by varchar(255) DEFAULT '' NOT NULL,
+        PRIMARY KEY  (id),
+        KEY enquiry_id (enquiry_id)
+    ) $charset_collate;";
+
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
+    dbDelta($sql_followups);
     
     add_option('crm_db_version', '1.0');
 }
@@ -306,7 +320,40 @@ function crm_export_enquiries_csv() {
 
         $output = fopen('php://output', 'w');
         if (!empty($results)) {
-            fputcsv($output, array(
+            $followups_table = $wpdb->prefix . 'crm_followups';
+            $client_actions = array();
+            $max_actions = 0;
+
+            // Pre-process action plans for each client
+            foreach ($results as $row) {
+                $actions = array();
+
+                // 1. Get chronological history from wp_crm_followups (oldest first)
+                $history = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM $followups_table WHERE enquiry_id = %d ORDER BY created_at ASC",
+                    $row['id']
+                ));
+
+                foreach ($history as $item) {
+                    $date_str = ($item->action_date && $item->action_date !== '0000-00-00') ? date('d M Y', strtotime($item->action_date)) : 'N/A';
+                    $actions[] = "Date: {$date_str} | S.M: {$item->s_m} | Remarks: {$item->remarks} (Logged by {$item->added_by})";
+                }
+
+                // 2. Append active next action follow-up if present
+                $has_active = !empty($row['s_m']) || (!empty($row['next_action_date']) && $row['next_action_date'] !== '0000-00-00') || !empty($row['next_action_remarks']);
+                if ($has_active) {
+                    $date_str = (!empty($row['next_action_date']) && $row['next_action_date'] !== '0000-00-00') ? date('d M Y', strtotime($row['next_action_date'])) : 'N/A';
+                    $actions[] = "Date: {$date_str} | S.M: {$row['s_m']} | Remarks: {$row['next_action_remarks']} (Active)";
+                }
+
+                $client_actions[$row['id']] = $actions;
+                if (count($actions) > $max_actions) {
+                    $max_actions = count($actions);
+                }
+            }
+
+            // Build dynamic CSV header columns
+            $headers = array(
                 'ID', 'Created At', 'Date Visit', 'Name', 'Contact', 'Email', 
                 'Residence', 'Occupation', 'Company Name', 'Company Location', 
                 'Configuration', 'Budget', 'Source', 'Reference Name', 
@@ -314,8 +361,15 @@ function crm_export_enquiries_csv() {
                 'Status Rating', 'Sourcing Manager', 'Client Age', 'Visit Frequency',
                 'Visit Attended By', 'Funding Option', 'SOP Amount', 'Ready Down Payment',
                 'Own Contribution', 'Preferred Unit', 'Preferred Floor', 'Preferred Budget',
-                'Feedback By', 'Feedback Details', 'Next Action S.M', 'Next Action Date', 'Next Action Remarks'
-            ));
+                'Feedback By', 'Feedback Details'
+            );
+
+            for ($i = 1; $i <= $max_actions; $i++) {
+                $headers[] = 'Action ' . $i;
+            }
+
+            fputcsv($output, $headers);
+
             foreach ($results as $row) {
                 $manager_name = 'None';
                 if (!empty($row['closing_manager_id'])) {
@@ -324,13 +378,8 @@ function crm_export_enquiries_csv() {
                         $manager_name = $manager_data->display_name;
                     }
                 }
-                
-                $action_date = '';
-                if (!empty($row['next_action_date']) && $row['next_action_date'] !== '0000-00-00') {
-                    $action_date = $row['next_action_date'];
-                }
 
-                fputcsv($output, array(
+                $row_data = array(
                     $row['id'],
                     $row['created_at'],
                     $row['date_visit'],
@@ -362,11 +411,16 @@ function crm_export_enquiries_csv() {
                     $row['unit_floor'],
                     $row['unit_budget'],
                     $row['feedback_by'],
-                    $row['feedback_details'],
-                    $row['s_m'],
-                    $action_date,
-                    $row['next_action_remarks']
-                ));
+                    $row['feedback_details']
+                );
+
+                // Append actions formatted strings padded to max_actions count
+                $actions = isset($client_actions[$row['id']]) ? $client_actions[$row['id']] : array();
+                for ($i = 0; $i < $max_actions; $i++) {
+                    $row_data[] = isset($actions[$i]) ? $actions[$i] : '';
+                }
+
+                fputcsv($output, $row_data);
             }
         }
         fclose($output);
@@ -592,7 +646,7 @@ function crm_enquiries_page_html() {
     echo '<table class="wp-list-table widefat fixed striped table-view-list">';
     echo '<thead><tr>';
     echo '<th class="manage-column column-cb check-column" style="width:2.2em;"><input type="checkbox" id="cb-select-all-1"></th>';
-    echo '<th>Date</th><th>Name</th><th>Closing Manager</th><th>Contact</th><th>Email</th><th>Config</th><th>Budget</th><th>Source</th><th>Partner</th>';
+    echo '<th>Date</th><th>Name</th><th>Closing Manager</th><th>Contact</th><th>Lead</th><th>Config</th><th>Budget</th><th>Source</th>';
     echo '</tr></thead>';
     echo '<tbody>';
     if ($results) {
@@ -629,27 +683,29 @@ function crm_enquiries_page_html() {
             echo '</td>';
 
             echo '<td>' . esc_html($row->contact) . '</td>';
-            echo '<td>' . esc_html($row->email) . '</td>';
+            $status_class = 'status-none';
+            $status_lbl = 'Not Rated';
+            if (!empty($row->lead_status)) {
+                $status_class = 'status-' . strtolower($row->lead_status);
+                $status_lbl = $row->lead_status;
+            }
+            echo '<td><span class="status-pill ' . esc_attr($status_class) . '">' . esc_html($status_lbl) . '</span></td>';
             echo '<td>' . esc_html($row->configuration) . '</td>';
             echo '<td>' . esc_html($row->budget) . '</td>';
             
             $source_display = esc_html($row->source);
             if ($row->source === 'Reference' && !empty($row->reference_name)) {
                 $source_display .= '<br><small>(' . esc_html($row->reference_name) . ')</small>';
+            } elseif ($row->source === 'Channel Partner' && !empty($row->cp_name)) {
+                $source_display .= '<br><small>(' . esc_html($row->cp_name) . ')</small>';
             }
             echo '<td>' . $source_display . '</td>';
 
-            $cp_display = esc_html($row->cp_name);
-            if (!empty($row->cp_contact)) {
-                $cp_display .= '<br><small>' . esc_html($row->cp_contact) . '</small>';
-            }
-            if (empty($cp_display)) $cp_display = '-';
-            echo '<td>' . $cp_display . '</td>';
 
             echo '</tr>';
         }
     } else {
-        echo '<tr><td colspan="10">No enquiries found.</td></tr>';
+        echo '<tr><td colspan="9">No enquiries found.</td></tr>';
     }
     echo '</tbody></table>';
     echo '</form>';
@@ -804,8 +860,73 @@ function crm_enquiries_page_html() {
         .status-hot { background: #fef2f2; color: #ef4444; border-color: #fee2e2; }
         .status-warm { background: #fffbeb; color: #d97706; border-color: #fef3c7; }
         .status-cold { background: #f0f9ff; color: #0284c7; border-color: #e0f2fe; }
-        .status-gold { background: #faf5ff; color: #a855f7; border-color: #f3e8ff; }
+        .status-lost { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
         .status-none { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+
+        /* Timeline styles */
+        .crm-timeline {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+            margin-top: 10px;
+            border-left: 2px solid var(--crm-border);
+        }
+        .crm-timeline-item {
+            position: relative;
+            margin-bottom: 1.2rem;
+        }
+        .crm-timeline-item:last-child {
+            margin-bottom: 0;
+        }
+        .crm-timeline-dot {
+            position: absolute;
+            left: calc(-1.5rem - 6px);
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--crm-gold);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 2px var(--crm-gold);
+        }
+        .crm-timeline-content {
+            background: var(--crm-bg);
+            border: 1px solid var(--crm-border);
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+        }
+        .crm-timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .crm-timeline-sm {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--crm-text);
+        }
+        .crm-timeline-date {
+            font-size: 11px;
+            color: var(--crm-muted);
+            font-weight: 500;
+        }
+        .crm-timeline-remarks {
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.4;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .crm-timeline-footer {
+            font-size: 10px;
+            color: var(--crm-muted);
+            margin-top: 6px;
+            font-weight: 500;
+            text-align: right;
+        }
     </style>
 
     <div class="crm-drawer-overlay" id="crm-feedback-drawer-overlay"></div>
@@ -899,7 +1020,7 @@ function crm_enquiries_page_html() {
             <!-- Section 4: Next Action Plan -->
             <div class="crm-drawer-card">
                 <h3>Next Action Follow-Up</h3>
-                <table class="crm-feedback-table">
+                <table class="crm-feedback-table" style="margin-bottom: 15px;">
                     <tr>
                         <td class="label-cell">Action Date</td>
                         <td class="value-cell" id="feedback-next-date" style="font-weight: 600; color: #1e293b;"></td>
@@ -913,6 +1034,12 @@ function crm_enquiries_page_html() {
                         <td class="value-cell" id="feedback-next-remarks" style="line-height: 1.5; color: #475569;"></td>
                     </tr>
                 </table>
+
+                <!-- Follow-up Timeline History for Site Manager -->
+                <div id="feedback-drawer-followup-timeline-container" style="border-top: 1px solid var(--crm-border); padding-top: 12px; display: none;">
+                    <h4 style="font-size: 13px; font-weight: 600; color: var(--crm-gold); margin: 0 0 10px 0;">Follow-Up History Log</h4>
+                    <div class="crm-timeline-list" id="feedback-drawer-followup-timeline"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -979,6 +1106,49 @@ function crm_enquiries_page_html() {
                     document.getElementById('feedback-next-sm').textContent = data.s_m || '-';
                     document.getElementById('feedback-next-remarks').textContent = data.next_action_remarks || 'No action plan remarks.';
                     
+                    // Fetch follow-up history for Site Manager drawer
+                    const timelineContainer = document.getElementById('feedback-drawer-followup-timeline-container');
+                    const timelineList = document.getElementById('feedback-drawer-followup-timeline');
+                    
+                    if (timelineContainer && timelineList) {
+                        timelineList.innerHTML = '<div style="color:var(--crm-muted); font-size:12px; font-style:italic;">Loading follow-up history...</div>';
+                        timelineContainer.style.display = 'block';
+                        
+                        fetch(`${ajaxurl}?action=get_client_followup_history&enquiry_id=${data.id}`)
+                            .then(response => response.json())
+                            .then(res => {
+                                if (res.success && res.data.history && res.data.history.length > 0) {
+                                    let html = '<div class="crm-timeline">';
+                                    res.data.history.forEach(item => {
+                                        html += `
+                                            <div class="crm-timeline-item">
+                                                <div class="crm-timeline-dot"></div>
+                                                <div class="crm-timeline-content">
+                                                    <div class="crm-timeline-header">
+                                                        <span class="crm-timeline-sm">S.M: ${item.s_m}</span>
+                                                        <span class="crm-timeline-date">${item.formatted_action_date}</span>
+                                                    </div>
+                                                    <p class="crm-timeline-remarks">${item.remarks}</p>
+                                                    <div class="crm-timeline-footer">
+                                                        Logged by: ${item.added_by} on ${item.formatted_created_at}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    });
+                                    html += '</div>';
+                                    timelineList.innerHTML = html;
+                                } else {
+                                    timelineContainer.style.display = 'none';
+                                    timelineList.innerHTML = '';
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error fetching followup history:', err);
+                                timelineList.innerHTML = '<div style="color:#ef4444; font-size:12px;">Failed to load follow-up history.</div>';
+                            });
+                    }
+
                     // Open drawer
                     overlay.classList.add('active');
                     drawer.classList.add('active');
@@ -1148,7 +1318,7 @@ function crm_closing_manager_page_html() {
             .status-hot { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
             .status-warm { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
             .status-cold { background: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
-            .status-gold { background: #faf5ff; color: #a855f7; border: 1px solid #f3e8ff; }
+            .status-lost { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
             .status-none { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
             /* Modern Sliding Drawer */
@@ -1371,11 +1541,76 @@ function crm_closing_manager_page_html() {
                 background: #f8fafc;
                 text-align: center;
             }
-            .signature-preview-box img {
+             .signature-preview-box img {
                 max-height: 80px;
                 object-fit: contain;
                 display: block;
                 margin: 0 auto;
+            }
+
+            /* Timeline styles */
+            .crm-timeline {
+                position: relative;
+                padding-left: 1.5rem;
+                margin-bottom: 1.5rem;
+                margin-top: 10px;
+                border-left: 2px solid var(--crm-border);
+            }
+            .crm-timeline-item {
+                position: relative;
+                margin-bottom: 1.2rem;
+            }
+            .crm-timeline-item:last-child {
+                margin-bottom: 0;
+            }
+            .crm-timeline-dot {
+                position: absolute;
+                left: calc(-1.5rem - 6px);
+                top: 4px;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--crm-gold);
+                border: 2px solid #ffffff;
+                box-shadow: 0 0 0 2px var(--crm-gold);
+            }
+            .crm-timeline-content {
+                background: var(--crm-bg);
+                border: 1px solid var(--crm-border);
+                border-radius: 8px;
+                padding: 0.8rem 1rem;
+            }
+            .crm-timeline-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.4rem;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .crm-timeline-sm {
+                font-weight: 600;
+                font-size: 12px;
+                color: var(--crm-text);
+            }
+            .crm-timeline-date {
+                font-size: 11px;
+                color: var(--crm-muted);
+                font-weight: 500;
+            }
+            .crm-timeline-remarks {
+                font-size: 12px;
+                color: #475569;
+                line-height: 1.4;
+                margin: 0;
+                white-space: pre-wrap;
+            }
+            .crm-timeline-footer {
+                font-size: 10px;
+                color: var(--crm-muted);
+                margin-top: 6px;
+                font-weight: 500;
+                text-align: right;
             }
         </style>
 
@@ -1544,7 +1779,7 @@ function crm_closing_manager_page_html() {
                                 <span class="crm-pill-opt" data-value="Hot" style="color: #ef4444;">Hot</span>
                                 <span class="crm-pill-opt" data-value="Warm" style="color: #d97706;">Warm</span>
                                 <span class="crm-pill-opt" data-value="Cold" style="color: #0284c7;">Cold</span>
-                                <span class="crm-pill-opt" data-value="Gold" style="color: #a855f7;">Gold</span>
+                                <span class="crm-pill-opt" data-value="Lost" style="color: #64748b;">Lost</span>
                             </div>
                         </div>
 
@@ -1624,9 +1859,14 @@ function crm_closing_manager_page_html() {
                         </div>
                     </div>
 
-                    <div class="crm-drawer-card">
-                        <h3>Schedule Next Action Follow-Up</h3>
-                        <div class="crm-form-grid">
+                     <div class="crm-drawer-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--crm-bg); padding-bottom: 8px; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; border: none; padding: 0; color: var(--crm-gold-dark);">Schedule Next Action Follow-Up</h3>
+                            <button type="button" id="drawer-btn-add-action" class="crm-btn-secondary" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px; border: 1px solid var(--crm-gold); color: var(--crm-gold-dark); background: #fffbeb; cursor: pointer; font-weight: 600;">
+                                <span style="font-size: 12px; font-weight: bold;">+</span> Add Action Details
+                            </button>
+                        </div>
+                        <div class="crm-form-grid" style="margin-bottom: 15px;">
                             <div class="crm-form-group">
                                 <label for="form-next-sm">Sales/Sourcing Manager (S.M)</label>
                                 <input type="text" name="s_m" id="form-next-sm" placeholder="Manager Name">
@@ -1639,6 +1879,12 @@ function crm_closing_manager_page_html() {
                                 <label for="form-next-remarks">Action Plan Remarks</label>
                                 <textarea name="next_action_remarks" id="form-next-remarks" rows="2" placeholder="Action remarks..."></textarea>
                             </div>
+                        </div>
+
+                        <!-- Follow-up Timeline History for Closing Manager -->
+                        <div id="drawer-followup-timeline-container" style="border-top: 1px solid var(--crm-border); padding-top: 12px; display: none;">
+                            <h4 style="font-size: 13px; font-weight: 600; color: var(--crm-gold); margin: 0 0 10px 0;">Follow-Up History Log</h4>
+                            <div class="crm-timeline-list" id="drawer-followup-timeline"></div>
                         </div>
                     </div>
                 </div>
@@ -1749,6 +1995,49 @@ function crm_closing_manager_page_html() {
                     setPillActiveState('visit-attended-pills', client.visit_attended_by);
                     setPillActiveState('funding-source-pills', client.funding_source);
 
+                    // Fetch follow-up history for Closing Manager drawer
+                    const timelineContainer = document.getElementById('drawer-followup-timeline-container');
+                    const timelineList = document.getElementById('drawer-followup-timeline');
+                    
+                    if (timelineContainer && timelineList) {
+                        timelineList.innerHTML = '<div style="color:var(--crm-muted); font-size:12px; font-style:italic;">Loading follow-up history...</div>';
+                        timelineContainer.style.display = 'block';
+                        
+                        fetch(`${ajaxurl}?action=get_client_followup_history&enquiry_id=${client.id}`)
+                            .then(response => response.json())
+                            .then(res => {
+                                if (res.success && res.data.history && res.data.history.length > 0) {
+                                    let html = '<div class="crm-timeline">';
+                                    res.data.history.forEach(item => {
+                                        html += `
+                                            <div class="crm-timeline-item">
+                                                <div class="crm-timeline-dot"></div>
+                                                <div class="crm-timeline-content">
+                                                    <div class="crm-timeline-header">
+                                                        <span class="crm-timeline-sm">S.M: ${item.s_m}</span>
+                                                        <span class="crm-timeline-date">${item.formatted_action_date}</span>
+                                                    </div>
+                                                    <p class="crm-timeline-remarks">${item.remarks}</p>
+                                                    <div class="crm-timeline-footer">
+                                                        Logged by: ${item.added_by} on ${item.formatted_created_at}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    });
+                                    html += '</div>';
+                                    timelineList.innerHTML = html;
+                                } else {
+                                    timelineContainer.style.display = 'none';
+                                    timelineList.innerHTML = '';
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error fetching followup history:', err);
+                                timelineList.innerHTML = '<div style="color:#ef4444; font-size:12px;">Failed to load follow-up history.</div>';
+                            });
+                    }
+
                     // Open visual drawers
                     overlay.classList.add('active');
                     drawer.classList.add('active');
@@ -1764,6 +2053,22 @@ function crm_closing_manager_page_html() {
             closeBtn.addEventListener('click', closeDrawer);
             cancelBtn.addEventListener('click', closeDrawer);
             overlay.addEventListener('click', closeDrawer);
+
+            // Add action details listener for the drawer
+            const drawerBtnAddAction = document.getElementById('drawer-btn-add-action');
+            if (drawerBtnAddAction) {
+                drawerBtnAddAction.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const dateInput = document.getElementById('form-next-date');
+                    const remarksInput = document.getElementById('form-next-remarks');
+                    if (dateInput && remarksInput) {
+                        dateInput.value = '';
+                        remarksInput.value = '';
+                        dateInput.focus();
+                        showToast('Previous plan scheduled for archiving. You can now type the new action plan details.', 'success');
+                    }
+                });
+            }
 
             // Toast Alerts
             function showToast(msg, type) {
@@ -1903,6 +2208,29 @@ function crm_handle_save_closing_manager_sheet() {
         wp_send_json_error(array('message' => 'Access denied. You are not authorized to update this client.'));
     }
 
+    // Detect if follow-up changed, and archive previous one
+    $s_m_new = sanitize_text_field($_POST['s_m']);
+    $date_new = !empty($_POST['next_action_date']) ? sanitize_text_field($_POST['next_action_date']) : '0000-00-00';
+    $remarks_new = sanitize_textarea_field($_POST['next_action_remarks']);
+
+    $has_old_followup = !empty($enquiry->s_m) || ($enquiry->next_action_date && $enquiry->next_action_date !== '0000-00-00') || !empty($enquiry->next_action_remarks);
+    $changed = ($s_m_new !== $enquiry->s_m) || ($date_new !== $enquiry->next_action_date) || ($remarks_new !== $enquiry->next_action_remarks);
+
+    if ($has_old_followup && $changed) {
+        $followups_table = $wpdb->prefix . 'crm_followups';
+        $wpdb->insert(
+            $followups_table,
+            array(
+                'enquiry_id' => $id,
+                'created_at' => current_time('mysql'),
+                's_m' => $enquiry->s_m,
+                'action_date' => $enquiry->next_action_date,
+                'remarks' => $enquiry->next_action_remarks,
+                'added_by' => $user->display_name
+            )
+        );
+    }
+
     $data = array(
         'lead_status' => sanitize_text_field($_POST['lead_status']),
         'sourcing_manager' => sanitize_text_field($_POST['sourcing_manager']),
@@ -1930,4 +2258,45 @@ function crm_handle_save_closing_manager_sheet() {
     } else {
         wp_send_json_error(array('message' => 'Failed to save annotation sheet.'));
     }
+}
+
+// ----------------------------------------------------
+// AJAX Get Client Follow-Up History
+// ----------------------------------------------------
+
+add_action('wp_ajax_get_client_followup_history', 'crm_handle_get_client_followup_history');
+function crm_handle_get_client_followup_history() {
+    // Check user permissions
+    if (!current_user_can('read')) {
+        wp_send_json_error(array('message' => 'Unauthorized.'));
+    }
+
+    global $wpdb;
+    $enquiry_id = isset($_GET['enquiry_id']) ? intval($_GET['enquiry_id']) : 0;
+    if (!$enquiry_id) {
+        wp_send_json_error(array('message' => 'Invalid client ID.'));
+    }
+
+    $followups_table = $wpdb->prefix . 'crm_followups';
+    
+    $history = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $followups_table WHERE enquiry_id = %d ORDER BY created_at DESC",
+        $enquiry_id
+    ));
+
+    $formatted_history = array();
+    foreach ($history as $item) {
+        $formatted_history[] = array(
+            'id' => $item->id,
+            's_m' => esc_html($item->s_m),
+            'action_date' => $item->action_date,
+            'formatted_action_date' => date('d M Y', strtotime($item->action_date)),
+            'remarks' => esc_html($item->remarks),
+            'added_by' => esc_html($item->added_by),
+            'created_at' => $item->created_at,
+            'formatted_created_at' => date('d M Y, h:i A', strtotime($item->created_at)),
+        );
+    }
+
+    wp_send_json_success(array('history' => $formatted_history));
 }
