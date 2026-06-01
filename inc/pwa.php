@@ -22,7 +22,7 @@ function crm_pwa_template_redirect() {
         header('Cache-Control: no-cache');
         
         ?>
-const CACHE_NAME = 'crm-app-v1';
+const CACHE_NAME = 'crm-app-v2';
 const urlsToCache = [
   '/',
   '<?php echo home_url('/closing-manager/'); ?>',

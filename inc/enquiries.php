@@ -682,7 +682,7 @@ function crm_enquiries_page_html() {
             }
             echo '</td>';
 
-            echo '<td>' . esc_html($row->contact) . '</td>';
+            echo '<td> ' . esc_html($row->contact) . ' </td>';
             $status_class = 'status-none';
             $status_lbl = 'Not Rated';
             if (!empty($row->lead_status)) {
@@ -945,6 +945,12 @@ function crm_enquiries_page_html() {
                         <td class="value-cell" id="feedback-client-name" style="font-weight: 700; font-size: 14px;"></td>
                     </tr>
                     <tr>
+                        <td class="label-cell">Contact Info</td>
+                        <td class="value-cell">
+                            <a href="#" id="feedback-contact-link" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;"></a>
+                        </td>
+                    </tr>
+                    <tr>
                         <td class="label-cell">Closing Manager</td>
                         <td class="value-cell" id="feedback-provided-by"></td>
                     </tr>
@@ -1064,6 +1070,18 @@ function crm_enquiries_page_html() {
                     
                     // Populate fields
                     document.getElementById('feedback-client-name').textContent = data.name || '-';
+                    
+                    const feedbackContactLink = document.getElementById('feedback-contact-link');
+                    if (feedbackContactLink) {
+                        if (data.contact) {
+                            feedbackContactLink.href = 'tel:' + data.contact;
+                            feedbackContactLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>${data.contact}`;
+                        } else {
+                            feedbackContactLink.removeAttribute('href');
+                            feedbackContactLink.innerHTML = '-';
+                        }
+                    }
+                    
                     document.getElementById('feedback-provided-by').textContent = data.feedback_by || 'Closing Manager';
                     
                     // Status Pill
@@ -1690,7 +1708,13 @@ function crm_closing_manager_page_html() {
                         ?>
                         <tr id="client-row-<?php echo esc_attr($row->id); ?>">
                             <td><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
-                            <td><strong><?php echo esc_html($row->name); ?></strong><br><small><?php echo esc_html($row->contact); ?></small></td>
+                            <td>
+                                <strong><?php echo esc_html($row->name); ?></strong><br>
+                                <a href="tel:<?php echo esc_attr($row->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                    <?php echo esc_html($row->contact); ?>
+                                </a>
+                            </td>
                             <td><?php echo esc_html($row->occupation); ?></td>
                             <td><?php echo esc_html($row->configuration); ?></td>
                             <td><?php echo esc_html($row->budget); ?></td>
@@ -1742,7 +1766,7 @@ function crm_closing_manager_page_html() {
                             </div>
                             <div class="crm-info-item">
                                 <label>Contact Info</label>
-                                <span id="info-contact"></span>
+                                <a href="#" id="info-contact-link" style="color: var(--crm-gold-dark); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;"></a>
                             </div>
                             <div class="crm-info-item">
                                 <label>Residence Address</label>
@@ -1954,7 +1978,11 @@ function crm_closing_manager_page_html() {
                     // 1. Populate Read-Only columns
                     document.getElementById('info-date-visit').textContent = client.date_visit;
                     document.getElementById('info-name').textContent = client.name;
-                    document.getElementById('info-contact').textContent = client.contact;
+                    const contactLink = document.getElementById('info-contact-link');
+                    if (contactLink) {
+                        contactLink.href = 'tel:' + client.contact;
+                        contactLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>${client.contact}`;
+                    }
                     document.getElementById('info-residence').textContent = client.residence || '-';
                     document.getElementById('info-occupation').textContent = client.occupation || '-';
                     document.getElementById('info-configuration').textContent = client.configuration || '-';

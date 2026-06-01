@@ -144,6 +144,99 @@ get_header();
                 $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY id DESC");
                 ?>
 
+                <style>
+                    /* Premium Table Container with horizontal scrolling */
+                    .crm-table-container {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+                        overflow-x: auto; /* Enables smooth horizontal scroll */
+                        position: relative;
+                    }
+                    
+                    .crm-table-container table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        text-align: left;
+                        font-size: 0.95rem;
+                        min-width: 850px; /* Guarantees comfortable, breathable column widths on all devices */
+                    }
+                    
+                    .crm-table-container th,
+                    .crm-table-container td {
+                        padding: 1rem 1.5rem;
+                        box-sizing: border-box;
+                    }
+                    
+                    /* Floating Sticky Last Column (Action Column) */
+                    .crm-table-container th:last-child,
+                    .crm-table-container td:last-child {
+                        position: -webkit-sticky;
+                        position: sticky;
+                        right: 0;
+                        width: 75px !important;
+                        min-width: 75px !important;
+                        text-align: center !important;
+                        background: #ffffff !important;
+                        z-index: 10;
+                        box-shadow: -6px 0 10px rgba(0, 0, 0, 0.04); /* Elegant drop shadow on the left edge */
+                        border-left: 1px solid #f1f5f9;
+                    }
+                    
+                    /* Floating header needs higher z-index and correct background */
+                    .crm-table-container th:last-child {
+                        background: #f8fafc !important;
+                        z-index: 11;
+                    }
+                    
+                    /* Ensure row hover styling applies correctly to the sticky cell */
+                    .crm-table-container tr:hover td:last-child {
+                        background: #fafafb !important;
+                    }
+                    
+                    /* Gold Arrow-Right Action Icon Button */
+                    .crm-btn-details-icon {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 32px;
+                        height: 32px;
+                        background: #d4af37;
+                        color: white;
+                        border-radius: 8px;
+                        text-decoration: none;
+                        transition: all 0.2s ease;
+                        box-shadow: 0 2px 6px rgba(212, 175, 55, 0.15);
+                    }
+                    
+                    .crm-btn-details-icon:hover {
+                        background: #b5952f;
+                        transform: translateX(1px);
+                        box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);
+                    }
+                    
+                    .crm-btn-details-icon:active {
+                        transform: translateX(0);
+                    }
+
+                    /* Client Status Pills in table list */
+                    .status-pill {
+                        text-wrap : nowrap;
+                        padding: 4px 10px;
+                        border-radius: 20px;
+                        font-size: 11px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        display: inline-block;
+                    }
+                    .status-hot { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+                    .status-warm { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+                    .status-cold { background: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
+                    .status-lost { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+                    .status-none { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+                </style>
+
                 <div class="crm-portal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 15px;">
                     <div>
                         <h1 style="font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0 0 0.25rem 0;">My Client Portfolios</h1>
@@ -170,7 +263,7 @@ get_header();
                             <option value="Hot" <?php selected($status_filter, 'Hot'); ?>>Hot</option>
                             <option value="Warm" <?php selected($status_filter, 'Warm'); ?>>Warm</option>
                             <option value="Cold" <?php selected($status_filter, 'Cold'); ?>>Cold</option>
-                            <option value="Gold" <?php selected($status_filter, 'Gold'); ?>>Gold</option>
+                            <option value="Lost" <?php selected($status_filter, 'Lost'); ?>>Lost</option>
                         </select>
                     </div>
 
@@ -193,14 +286,15 @@ get_header();
                 </form>
 
                 <!-- Table Card -->
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;">
+                <div class="crm-table-container">
+                    <table>
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                                <th style="padding: 1rem 1.5rem; font-weight: 600; color: #475569; width: 120px;">Date Visit</th>
-                                <th style="padding: 1rem 1.5rem; font-weight: 600; color: #475569;">Client</th>
-                                <th style="padding: 1rem 1.5rem; font-weight: 600; color: #475569; width: 120px;">Status</th>
-                                <th style="padding: 1rem 1.5rem; font-weight: 600; color: #475569; text-align: center; width: 150px;">Action</th>
+                                <th style="width: 120px;">Date Visit</th>
+                                <th>Client</th>
+                                <th style="width: 120px;">Status</th>
+                                <th style="width: 180px;">Next Action</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -213,23 +307,43 @@ get_header();
                                         $status_class = 'status-' . strtolower($row->lead_status);
                                         $status_lbl = $row->lead_status;
                                     }
+
+                                    // Next Action details
+                                    $next_action_date_display = '-';
+                                    if (!empty($row->next_action_date) && $row->next_action_date !== '0000-00-00') {
+                                        $next_action_date_display = date('d M Y', strtotime($row->next_action_date));
+                                    }
+                                    
+                                    $next_action_remarks_display = !empty($row->next_action_remarks) ? esc_html($row->next_action_remarks) : '-';
+                                    if (strlen($next_action_remarks_display) > 40) {
+                                        $next_action_remarks_display = substr($next_action_remarks_display, 0, 37) . '...';
+                                    }
                                     ?>
                                     <tr id="client-row-<?php echo esc_attr($row->id); ?>" style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#fafafb';" onmouseout="this.style.background='transparent';">
-                                        <td style="padding: 1rem 1.5rem; color: #64748b;"><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
-                                        <td style="padding: 1rem 1.5rem;">
+                                        <td><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
+                                        <td class="client-cell">
                                             <strong style="color: #1e293b;"><?php echo esc_html($row->name); ?></strong><br>
-                                            <small style="color: #64748b; display: block; margin-top: 2px;"><?php echo esc_html($row->contact); ?></small>
+                                            <a href="tel:<?php echo esc_attr($row->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-top: 2.5px; font-size: 0.85rem;" class="tel-link">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                                call
+                                            </a>
                                             <small style="color: #475569; display: block; margin-top: 2px;"><?php echo esc_html($row->occupation); ?></small>
                                         </td>
-                                        <td style="padding: 1rem 1.5rem;"><span class="status-pill <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_lbl); ?></span></td>
-                                        <td style="padding: 1rem 1.5rem; text-align: center;">
-                                            <a href="?client_id=<?php echo esc_attr($row->id); ?>" style="display: inline-block; padding: 6px 14px; background: #d4af37; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-decoration: none; transition: background 0.2s;" onmouseover="this.style.background='#b5952f'" onmouseout="this.style.background='#d4af37'">View Details</a>
+                                        <td><span class="status-pill <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_lbl); ?></span></td>
+                                        <td>
+                                            <strong style="color: #1e293b; font-size: 0.85rem; display: block;"><?php echo esc_html($next_action_date_display); ?></strong>
+                                            <span style="font-size: 0.8rem; color: #64748b;"><?php echo esc_html($next_action_remarks_display); ?></span>
+                                        </td>
+                                        <td>
+                                            <a href="?client_id=<?php echo esc_attr($row->id); ?>" class="crm-btn-details-icon" title="View Details">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                            </a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="4" style="padding: 3rem; text-align: center; color: #64748b; font-style: italic;">No clients found assigned to you.</td>
+                                    <td colspan="5" style="padding: 3rem; text-align: center; color: #64748b; font-style: italic;">No clients found assigned to you.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -410,6 +524,118 @@ get_header();
                     }
                 }
 
+                /* Mobile responsive card styles for client list */
+                @media (max-width: 768px) {
+                    .crm-table-container thead {
+                        display: none !important;
+                    }
+                    .crm-table-container table,
+                    .crm-table-container tbody,
+                    .crm-table-container tr,
+                    .crm-table-container td {
+                        display: block !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    .crm-table-container tr {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0 !important;
+                        border-radius: 12px !important;
+                        margin-bottom: 1.25rem !important;
+                        padding: 1.25rem !important;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.02) !important;
+                        position: relative !important;
+                    }
+                    .crm-table-container td {
+                        padding: 0.4rem 0 !important;
+                        border-bottom: none !important;
+                        display: flex !important;
+                        flex-direction: row !important;
+                        align-items: baseline !important;
+                        text-align: left !important;
+                    }
+                    .crm-table-container td::before {
+                        content: attr(data-label);
+                        display: inline-block !important;
+                        width: 110px !important;
+                        flex-shrink: 0 !important;
+                        font-size: 0.72rem !important;
+                        text-transform: uppercase !important;
+                        color: #64748b !important;
+                        font-weight: 700 !important;
+                        letter-spacing: 0.05em !important;
+                    }
+                    .crm-table-container td.client-cell {
+                        display: block !important;
+                        padding-top: 0 !important;
+                        margin-bottom: 8px !important;
+                        border-bottom: 1px solid #f1f5f9 !important;
+                        padding-bottom: 10px !important;
+                    }
+                    .crm-table-container td.client-cell::before {
+                        display: none !important;
+                    }
+                    .crm-table-container td.client-cell strong {
+                        font-size: 1.15rem !important;
+                        display: inline-block !important;
+                        margin-bottom: 2px !important;
+                    }
+                    .crm-table-container td.client-cell .tel-link {
+                        margin-top: 4px !important;
+                        font-size: 0.9rem !important;
+                    }
+                    .crm-table-container td.client-cell small {
+                        font-size: 0.85rem !important;
+                    }
+                    .crm-table-container td[data-label="Status"] .status-pill {
+                        font-size: 10px !important;
+                        padding: 2px 8px !important;
+                    }
+                    .crm-table-container td[data-label="Next Action"] {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                    }
+                    .crm-table-container td[data-label="Next Action"]::before {
+                        margin-bottom: 4px !important;
+                    }
+                    .crm-table-container td[data-label="Next Action"] strong {
+                        font-size: 0.9rem !important;
+                        color: #1e293b !important;
+                        display: block !important;
+                        margin-bottom: 2px !important;
+                    }
+                    .crm-table-container td[data-label="Next Action"] span {
+                        font-size: 0.85rem !important;
+                    }
+                    .crm-table-container td:last-child {
+                        margin-top: 10px !important;
+                        border-top: 1px solid #f1f5f9 !important;
+                        padding-top: 12px !important;
+                        display: flex !important;
+                        gap: 10px !important;
+                        justify-content: stretch !important;
+                        align-items: center !important;
+                    }
+                    .crm-table-container td:last-child::before {
+                        display: none !important;
+                    }
+                    .crm-table-container td:last-child a {
+                        flex: 1 !important;
+                        text-align: center !important;
+                        padding: 10px 14px !important;
+                        font-size: 0.88rem !important;
+                        height: 38px !important;
+                        box-sizing: border-box !important;
+                        display: inline-flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        margin: 0 !important;
+                    }
+                    .crm-table-container td:last-child .crm-btn-call-mobile {
+                        display: inline-flex !important;
+                    }
+                }
+
                 /* Timeline styles */
                 .crm-timeline {
                     position: relative;
@@ -516,7 +742,10 @@ get_header();
                                     </div>
                                     <div class="crm-info-item">
                                         <label>Contact Info</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->contact); ?></span>
+                                        <a href="tel:<?php echo esc_attr($single_client->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 700; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--crm-gold, #d4af37)';" onmouseout="this.style.color='var(--crm-gold-dark, #b5952f)';">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                            <?php echo esc_html($single_client->contact); ?>
+                                        </a>
                                     </div>
                                     <div class="crm-info-item">
                                         <label>Residence Location</label>
@@ -699,7 +928,7 @@ get_header();
                                     <?php if (!empty($followup_history)) : ?>
                                     <div style="border: none; padding-top: 1.5rem; margin-top: 1.5rem; width: 100%;">
                                         <label class="section-label" style="margin-bottom: 0.8rem; display: block; font-weight: 700; color: var(--crm-gold-dark, #b5952f);">Follow-Up History & Timeline</label>
-                                        <ul style="list-style-type: disc; padding-left: 1.5rem; margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">
+                                        <ul style="list-style-type: disc; padding-left: 1rem; margin: 0; color: #475569; font-size: 10px; line-height: 1.6;">
                                             <?php foreach ($followup_history as $history) : ?>
                                                 <li style="margin-bottom: 8px;">
                                                     <strong style="color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($history->action_date))); ?></strong> - <?php echo esc_html($history->remarks); ?>
