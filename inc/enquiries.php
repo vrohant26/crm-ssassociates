@@ -8,6 +8,7 @@ function crm_create_enquiries_table() {
 
     $sql = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
+        building_name varchar(100) DEFAULT '' NOT NULL,
         created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
         date_visit date NOT NULL,
         name varchar(255) NOT NULL,
@@ -60,6 +61,15 @@ function crm_create_enquiries_table() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
     dbDelta($sql_followups);
+    
+    // Safety check: Alter table dynamically if staging db delta did not fire
+    $column = $wpdb->get_results($wpdb->prepare(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+        DB_NAME, $table_name, 'building_name'
+    ));
+    if (empty($column)) {
+        $wpdb->query("ALTER TABLE $table_name ADD building_name varchar(100) DEFAULT '' NOT NULL AFTER id");
+    }
     
     add_option('crm_db_version', '1.0');
 }
@@ -215,6 +225,7 @@ function crm_handle_enquiry_submission() {
 
     // Sanitize data
     $data = array(
+        'building_name' => isset($_POST['building_name']) ? sanitize_text_field($_POST['building_name']) : 'Pearl Grace',
         'created_at' => current_time('mysql'),
         'date_visit' => sanitize_text_field($_POST['date']),
         'name' => sanitize_text_field($_POST['name']),
@@ -354,7 +365,7 @@ function crm_export_enquiries_csv() {
 
             // Build dynamic CSV header columns
             $headers = array(
-                'ID', 'Created At', 'Date Visit', 'Name', 'Contact', 'Email', 
+                'ID', 'Created At', 'Date Visit', 'Project', 'Name', 'Contact', 'Email', 
                 'Residence', 'Occupation', 'Company Name', 'Company Location', 
                 'Configuration', 'Budget', 'Source', 'Reference Name', 
                 'Channel Partner Name', 'Channel Partner Contact', 'Signature', 'Closing Manager',
@@ -383,6 +394,7 @@ function crm_export_enquiries_csv() {
                     $row['id'],
                     $row['created_at'],
                     $row['date_visit'],
+                    !empty($row['building_name']) ? $row['building_name'] : 'Pearl Grace',
                     $row['name'],
                     $row['contact'],
                     $row['email'],
@@ -457,6 +469,7 @@ function crm_handle_enquiries_crud() {
             check_admin_referer('update_enquiry_' . $_POST['id']);
             
             $data = array(
+                'building_name' => isset($_POST['building_name']) ? sanitize_text_field($_POST['building_name']) : 'Pearl Grace',
                 'date_visit' => sanitize_text_field($_POST['date_visit']),
                 'name' => sanitize_text_field($_POST['name']),
                 'contact' => sanitize_text_field($_POST['contact']),
@@ -508,6 +521,11 @@ function crm_enquiries_page_html() {
             ));
 
             echo '<table class="form-table" role="presentation">';
+            echo '<tr><th scope="row"><label for="building_name">Project</label></th><td>';
+            echo '<select name="building_name" id="building_name" class="regular-text">';
+            echo '<option value="Pearl Grace"' . selected($enquiry->building_name, 'Pearl Grace', false) . '>Pearl Grace</option>';
+            echo '<option value="MK Harmony"' . selected($enquiry->building_name, 'MK Harmony', false) . '>MK Harmony</option>';
+            echo '</select></td></tr>';
             echo '<tr><th scope="row"><label for="date_visit">Date Visit</label></th><td><input name="date_visit" type="date" id="date_visit" value="' . esc_attr($enquiry->date_visit) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="closing_manager_id">Closing Manager</label></th><td>';
             echo '<select name="closing_manager_id" id="closing_manager_id" class="regular-text">';
@@ -646,7 +664,7 @@ function crm_enquiries_page_html() {
     echo '<table class="wp-list-table widefat fixed striped table-view-list">';
     echo '<thead><tr>';
     echo '<th class="manage-column column-cb check-column" style="width:2.2em;"><input type="checkbox" id="cb-select-all-1"></th>';
-    echo '<th>Date</th><th>Name</th><th>Closing Manager</th><th>Contact</th><th>Lead</th><th>Config</th><th>Budget</th><th>Source</th>';
+    echo '<th>Date</th><th>Project</th><th>Name</th><th>Closing Manager</th><th>Contact</th><th>Lead</th><th>Config</th><th>Budget</th><th>Source</th>';
     echo '</tr></thead>';
     echo '<tbody>';
     if ($results) {
@@ -654,6 +672,9 @@ function crm_enquiries_page_html() {
             echo '<tr>';
             echo '<th scope="row" class="check-column"><input type="checkbox" name="enquiry_ids[]" value="' . esc_attr($row->id) . '"></th>';
             echo '<td>' . esc_html(date('d M Y', strtotime($row->date_visit))) . '</td>';
+            
+            $building = !empty($row->building_name) ? $row->building_name : 'Pearl Grace';
+            echo '<td>' . esc_html($building) . '</td>';
             
             $edit_link = wp_nonce_url(admin_url('admin.php?page=crm-enquiries&action=edit&id=' . $row->id), 'edit_enquiry_' . $row->id);
             $delete_link = wp_nonce_url(admin_url('admin.php?page=crm-enquiries&action=delete&id=' . $row->id), 'delete_enquiry_' . $row->id);
@@ -705,7 +726,7 @@ function crm_enquiries_page_html() {
             echo '</tr>';
         }
     } else {
-        echo '<tr><td colspan="9">No enquiries found.</td></tr>';
+        echo '<tr><td colspan="10">No enquiries found.</td></tr>';
     }
     echo '</tbody></table>';
     echo '</form>';
@@ -941,6 +962,10 @@ function crm_enquiries_page_html() {
                 <h3>Overview</h3>
                 <table class="crm-feedback-table">
                     <tr>
+                        <td class="label-cell">Project</td>
+                        <td class="value-cell" id="feedback-project" style="font-weight: 600;"></td>
+                    </tr>
+                    <tr>
                         <td class="label-cell">Client Name</td>
                         <td class="value-cell" id="feedback-client-name" style="font-weight: 700; font-size: 14px;"></td>
                     </tr>
@@ -1069,6 +1094,7 @@ function crm_enquiries_page_html() {
                     }
                     
                     // Populate fields
+                    document.getElementById('feedback-project').textContent = data.building_name || 'Pearl Grace';
                     document.getElementById('feedback-client-name').textContent = data.name || '-';
                     
                     const feedbackContactLink = document.getElementById('feedback-contact-link');
@@ -1761,6 +1787,10 @@ function crm_closing_manager_page_html() {
                                 <span id="info-date-visit"></span>
                             </div>
                             <div class="crm-info-item">
+                                <label>Project</label>
+                                <span id="info-project" style="font-weight: 600;"></span>
+                            </div>
+                            <div class="crm-info-item">
                                 <label>Full Name</label>
                                 <span id="info-name" style="font-weight: 700;"></span>
                             </div>
@@ -1977,6 +2007,7 @@ function crm_closing_manager_page_html() {
 
                     // 1. Populate Read-Only columns
                     document.getElementById('info-date-visit').textContent = client.date_visit;
+                    document.getElementById('info-project').textContent = client.building_name || 'Pearl Grace';
                     document.getElementById('info-name').textContent = client.name;
                     const contactLink = document.getElementById('info-contact-link');
                     if (contactLink) {

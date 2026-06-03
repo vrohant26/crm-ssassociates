@@ -1,4 +1,51 @@
 function initCRMForm() {
+    // Project Selection & Transition Logic
+    const projectCards = document.querySelectorAll('.project-card');
+    const projectSelector = document.getElementById('project-selector-section');
+    const formSection = document.getElementById('enquiry-form-section');
+    const buildingInput = document.getElementById('building-name-input');
+    const formLogoImg = document.getElementById('form-logo-img');
+    const changeProjectLink = document.getElementById('change-project-link');
+
+    if (projectCards.length > 0 && projectSelector && formSection && buildingInput && formLogoImg) {
+        projectCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                const project = this.dataset.project;
+                const logo = this.dataset.logo;
+
+                buildingInput.value = project;
+                formLogoImg.src = logo;
+                formLogoImg.alt = project + ' Logo';
+
+                // Transition views
+                projectSelector.classList.remove('fade-in');
+                projectSelector.classList.add('hidden');
+                formSection.classList.remove('hidden');
+                formSection.classList.add('fade-in');
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+    }
+
+    if (changeProjectLink && projectSelector && formSection && buildingInput) {
+        changeProjectLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            buildingInput.value = '';
+
+            // Transition views back
+            formSection.classList.remove('fade-in');
+            formSection.classList.add('hidden');
+            projectSelector.classList.remove('hidden');
+            projectSelector.classList.add('fade-in');
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
     // Pill selection logic
     function setupPills(groupId, inputId, onChange) {
         const group = document.getElementById(groupId);

@@ -320,7 +320,7 @@ get_header();
                                     }
                                     ?>
                                     <tr id="client-row-<?php echo esc_attr($row->id); ?>" style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#fafafb';" onmouseout="this.style.background='transparent';">
-                                        <td><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
+                                        <td data-label="Date Visit"><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
                                         <td class="client-cell">
                                             <strong style="color: #1e293b;"><?php echo esc_html($row->name); ?></strong><br>
                                             <a href="tel:<?php echo esc_attr($row->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-top: 2.5px; font-size: 0.85rem;" class="tel-link">
@@ -329,8 +329,8 @@ get_header();
                                             </a>
                                             <small style="color: #475569; display: block; margin-top: 2px;"><?php echo esc_html($row->occupation); ?></small>
                                         </td>
-                                        <td><span class="status-pill <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_lbl); ?></span></td>
-                                        <td>
+                                        <td data-label="Status"><span class="status-pill <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_lbl); ?></span></td>
+                                        <td data-label="Next Action">
                                             <strong style="color: #1e293b; font-size: 0.85rem; display: block;"><?php echo esc_html($next_action_date_display); ?></strong>
                                             <span style="font-size: 0.8rem; color: #64748b;"><?php echo esc_html($next_action_remarks_display); ?></span>
                                         </td>
@@ -735,6 +735,10 @@ get_header();
                                     <div class="crm-info-item">
                                         <label>Date of Visit</label>
                                         <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($single_client->date_visit))); ?></span>
+                                    </div>
+                                    <div class="crm-info-item">
+                                        <label>Project</label>
+                                        <span style="font-weight: 600; color: #1e293b;"><?php echo esc_html(!empty($single_client->building_name) ? $single_client->building_name : 'Pearl Grace'); ?></span>
                                     </div>
                                     <div class="crm-info-item">
                                         <label>Full Name</label>
