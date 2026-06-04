@@ -268,18 +268,7 @@ function crm_enquiries_menu() {
         );
     }
 
-    $user = wp_get_current_user();
-    if (in_array('crm_closing_manager', $user->roles) || current_user_can('manage_options')) {
-        add_menu_page(
-            'My Clients',
-            'My Clients',
-            'read',
-            'crm-closing-manager-enquiries',
-            'crm_closing_manager_page_html',
-            'dashicons-groups',
-            20
-        );
-    }
+
 }
 add_action('admin_menu', 'crm_enquiries_menu');
 
@@ -295,6 +284,7 @@ function crm_export_enquiries_csv() {
         $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
         $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
         $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+        $project_filter = isset($_GET['building_name']) ? sanitize_text_field($_GET['building_name']) : '';
         
         $where_clauses = array();
         $prepare_args = array();
@@ -314,6 +304,15 @@ function crm_export_enquiries_csv() {
         if (!empty($date_to)) {
             $where_clauses[] = "date_visit <= %s";
             $prepare_args[] = $date_to;
+        }
+
+        if (!empty($project_filter)) {
+            if ($project_filter === 'Pearl Grace') {
+                $where_clauses[] = "(building_name = 'Pearl Grace' OR building_name = '')";
+            } else {
+                $where_clauses[] = "building_name = %s";
+                $prepare_args[] = $project_filter;
+            }
         }
 
         $where = '';
@@ -524,7 +523,7 @@ function crm_enquiries_page_html() {
             echo '<tr><th scope="row"><label for="building_name">Project</label></th><td>';
             echo '<select name="building_name" id="building_name" class="regular-text">';
             echo '<option value="Pearl Grace"' . selected($enquiry->building_name, 'Pearl Grace', false) . '>Pearl Grace</option>';
-            echo '<option value="MK Harmony"' . selected($enquiry->building_name, 'MK Harmony', false) . '>MK Harmony</option>';
+            echo '<option value="MK Crown"' . selected($enquiry->building_name, 'MK Crown', false) . '>MK Crown</option>';
             echo '</select></td></tr>';
             echo '<tr><th scope="row"><label for="date_visit">Date Visit</label></th><td><input name="date_visit" type="date" id="date_visit" value="' . esc_attr($enquiry->date_visit) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="closing_manager_id">Closing Manager</label></th><td>';
@@ -561,6 +560,7 @@ function crm_enquiries_page_html() {
     $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
     $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
     $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+    $project_filter = isset($_GET['building_name']) ? sanitize_text_field($_GET['building_name']) : '';
     
     $where_clauses = array();
     $prepare_args = array();
@@ -582,6 +582,15 @@ function crm_enquiries_page_html() {
         $prepare_args[] = $date_to;
     }
 
+    if (!empty($project_filter)) {
+        if ($project_filter === 'Pearl Grace') {
+            $where_clauses[] = "(building_name = 'Pearl Grace' OR building_name = '')";
+        } else {
+            $where_clauses[] = "building_name = %s";
+            $prepare_args[] = $project_filter;
+        }
+    }
+
     $where = '';
     if (!empty($where_clauses)) {
         $where = " WHERE " . implode(' AND ', $where_clauses);
@@ -597,7 +606,8 @@ function crm_enquiries_page_html() {
         'export_csv' => '1',
         's' => $search,
         'date_from' => $date_from,
-        'date_to' => $date_to
+        'date_to' => $date_to,
+        'building_name' => $project_filter
     ), admin_url('admin.php'));
 
     echo '<div class="wrap">';
@@ -629,6 +639,15 @@ function crm_enquiries_page_html() {
     echo '<label style="display:block; margin-bottom:5px;" for="post-search-input">Search:</label>';
     echo '<input type="search" id="post-search-input" name="s" value="' . esc_attr($search) . '" placeholder="Name, Email, Contact...">';
     echo '</div>';
+
+    echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="building_name_filter">Project:</label>';
+    echo '<select id="building_name_filter" name="building_name" style="padding: 3px 8px; height: 28px; width: 120px">';
+    echo '<option value="">All Projects</option>';
+    echo '<option value="Pearl Grace"' . selected($project_filter, 'Pearl Grace', false) . '>Pearl Grace</option>';
+    echo '<option value="MK Crown"' . selected($project_filter, 'MK Crown', false) . '>MK Crown</option>';
+    echo '</select>';
+    echo '</div>';
     
     echo '<div>';
     echo '<label style="display:block; margin-bottom:5px;" for="date_from">From Date:</label>';
@@ -642,7 +661,7 @@ function crm_enquiries_page_html() {
 
     echo '<div>';
     echo '<input type="submit" id="search-submit" class="button button-primary" value="Filter">';
-    if (!empty($search) || !empty($date_from) || !empty($date_to)) {
+    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter)) {
         echo ' <a href="?page=crm-enquiries" class="button">Clear</a>';
     }
     echo '</div>';
@@ -1217,15 +1236,8 @@ function crm_enquiries_page_html() {
 // ----------------------------------------------------
 
 function crm_closing_manager_page_html() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'crm_enquiries';
-    $user = wp_get_current_user();
-    $is_admin = current_user_can('manage_options');
-
-    // Access check
-    if (!in_array('crm_closing_manager', $user->roles) && !$is_admin) {
-        wp_die('Access denied.');
-    }
+    wp_die('Access denied.');
+    return;
 
     $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';

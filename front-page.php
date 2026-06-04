@@ -19,10 +19,10 @@
                         <img src="<?php echo get_template_directory_uri(); ?>/pearl-grace-logo.png" alt="Pearl Grace" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
                         <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">Pearl Grace</span>
                     </div>
-                    <!-- MK Harmony Card -->
-                    <div class="project-card" data-project="MK Harmony" data-logo="<?php echo get_template_directory_uri(); ?>/mk-harmony-logo.png" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
-                        <img src="<?php echo get_template_directory_uri(); ?>/mk-harmony-logo.png" alt="MK Harmony" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
-                        <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">MK Harmony</span>
+                    <!-- MK Crown Card -->
+                    <div class="project-card" data-project="MK Crown" data-logo="<?php echo get_template_directory_uri(); ?>/mk-crown-logo.png" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+                        <img src="<?php echo get_template_directory_uri(); ?>/mk-crown-logo.png" alt="MK Crown" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
+                        <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">MK Crown</span>
                     </div>
 
                 </div>
