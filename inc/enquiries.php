@@ -28,6 +28,7 @@ function crm_create_enquiries_table() {
         closing_manager_id bigint(20) DEFAULT 0 NOT NULL,
         lead_status varchar(50) DEFAULT '' NOT NULL,
         sourcing_manager varchar(255) DEFAULT '' NOT NULL,
+        pre_sales varchar(255) DEFAULT '' NOT NULL,
         client_age varchar(50) DEFAULT '' NOT NULL,
         visit_type varchar(50) DEFAULT '' NOT NULL,
         visit_attended_by varchar(100) DEFAULT '' NOT NULL,
@@ -70,6 +71,15 @@ function crm_create_enquiries_table() {
     ));
     if (empty($column)) {
         $wpdb->query("ALTER TABLE $table_name ADD building_name varchar(100) DEFAULT '' NOT NULL AFTER id");
+    }
+
+    // Safety check for pre_sales
+    $column_presales = $wpdb->get_results($wpdb->prepare(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+        DB_NAME, $table_name, 'pre_sales'
+    ));
+    if (empty($column_presales)) {
+        $wpdb->query("ALTER TABLE $table_name ADD pre_sales varchar(255) DEFAULT '' NOT NULL AFTER sourcing_manager");
     }
     
     add_option('crm_db_version', '1.0');
@@ -243,6 +253,8 @@ function crm_handle_enquiry_submission() {
         'cp_name' => sanitize_text_field($_POST['cp_name']),
         'cp_contact' => sanitize_text_field($_POST['cp_contact']),
         'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
+        'sourcing_manager' => isset($_POST['sourcing_manager']) ? sanitize_text_field($_POST['sourcing_manager']) : '',
+        'pre_sales' => isset($_POST['pre_sales']) ? sanitize_text_field($_POST['pre_sales']) : '',
     );
 
     $inserted = $wpdb->insert($table_name, $data);
@@ -377,7 +389,7 @@ function crm_export_enquiries_csv() {
                 'Residence', 'Occupation', 'Company Name', 'Company Location', 
                 'Configuration', 'Budget', 'Source', 'Reference Name', 
                 'Channel Partner Name', 'Channel Partner Contact', 'Closing Manager',
-                'Status Rating', 'Sourcing Manager', 'Client Age', 'Visit Frequency',
+                'Status Rating', 'Sourcing Manager', 'Pre-sales', 'Client Age', 'Visit Frequency',
                 'Visit Attended By', 'Funding Option', 'SOP Amount', 'Ready Down Payment',
                 'Own Contribution', 'Preferred Unit', 'Preferred Floor', 'Preferred Budget',
                 'Feedback By', 'Feedback Details'
@@ -419,6 +431,7 @@ function crm_export_enquiries_csv() {
                     $manager_name,
                     $row['lead_status'],
                     $row['sourcing_manager'],
+                    $row['pre_sales'],
                     $row['client_age'],
                     $row['visit_type'],
                     $row['visit_attended_by'],
@@ -1097,6 +1110,10 @@ function crm_enquiries_page_html() {
                         <td class="value-cell" id="feedback-sourcing-manager"></td>
                     </tr>
                     <tr>
+                        <td class="label-cell">Pre-sales</td>
+                        <td class="value-cell" id="feedback-pre-sales"></td>
+                    </tr>
+                    <tr>
                         <td class="label-cell">Client Age</td>
                         <td class="value-cell" id="feedback-client-age"></td>
                     </tr>
@@ -1128,7 +1145,7 @@ function crm_enquiries_page_html() {
                         <td class="value-cell" id="feedback-next-date" style="font-weight: 600; color: #1e293b;"></td>
                     </tr>
                     <tr>
-                        <td class="label-cell">Sales Manager (S.M)</td>
+                        <td class="label-cell">Action Owner (S.M)</td>
                         <td class="value-cell" id="feedback-next-sm"></td>
                     </tr>
                     <tr>
@@ -1982,7 +1999,7 @@ function crm_closing_manager_page_html() {
                         </div>
                         <div class="crm-form-grid" style="margin-bottom: 15px;">
                             <div class="crm-form-group">
-                                <label for="form-next-sm">Sales/Sourcing Manager (S.M)</label>
+                                <label for="form-next-sm">Action Owner (S.M)</label>
                                 <input type="text" name="s_m" id="form-next-sm" placeholder="Manager Name">
                             </div>
                             <div class="crm-form-group">

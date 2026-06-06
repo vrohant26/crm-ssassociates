@@ -898,10 +898,7 @@ get_header();
                     <label>Sourcing Manager</label>
                     <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->sourcing_manager ? $single_client->sourcing_manager : '-'); ?></span>
                 </div>
-                <div class="crm-info-item">
-                    <label>Sales Manager</label>
-                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(isset($single_client->sales_manager) && $single_client->sales_manager ? $single_client->sales_manager : '-'); ?></span>
-                </div>
+
                 <div class="crm-info-item">
                     <label>Pre-sales</label>
                     <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(isset($single_client->pre_sales) && $single_client->pre_sales ? $single_client->pre_sales : '-'); ?></span>

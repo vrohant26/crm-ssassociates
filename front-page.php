@@ -280,10 +280,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="input-group" style="margin-top: 1.25rem;">
-                    <label>Sales Manager</label>
-                    <input type="text" name="sales_manager" placeholder="Sales Manager Name">
-                </div>
+
                 <div class="input-group" style="margin-top: 1.25rem;">
                     <label>Sourcing Manager</label>
                     <input type="text" name="sourcing_manager" placeholder="e.g. Rahul Sharma">
