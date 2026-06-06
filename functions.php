@@ -93,16 +93,12 @@ function crm_is_closing_manager($user = null) {
 // PROJECT ASSIGNMENT FOR SITE MANAGERS
 // =========================================================================
 
-// Display the Assigned Projects fields in User Profile
+// Display the Assigned Projects fields in User Profile and Add New User
 add_action('show_user_profile', 'crm_add_site_manager_project_fields');
 add_action('edit_user_profile', 'crm_add_site_manager_project_fields');
+add_action('user_new_form', 'crm_add_site_manager_project_fields');
 
 function crm_add_site_manager_project_fields($user) {
-    // Only show if the user being edited is a site_manager
-    if (!in_array('site_manager', (array) $user->roles)) {
-        return;
-    }
-
     // Only allow Admin or Site-Head Master to see/edit these assignments
     $current_user = wp_get_current_user();
     if (!current_user_can('manage_options') && !in_array('crm_site_head_master', (array) $current_user->roles)) {
@@ -110,38 +106,73 @@ function crm_add_site_manager_project_fields($user) {
     }
 
     $projects = crm_get_projects();
-    $assigned_projects = get_user_meta($user->ID, 'crm_assigned_projects', true);
+    
+    // Support for both 'user_new_form' (string) and 'edit_user_profile' (WP_User object)
+    $assigned_projects = array();
+    $is_site_manager = false;
+    
+    if (is_object($user) && isset($user->ID)) {
+        $assigned_projects = get_user_meta($user->ID, 'crm_assigned_projects', true);
+        $is_site_manager = in_array('site_manager', (array) $user->roles);
+    }
+    
     if (!is_array($assigned_projects)) {
         $assigned_projects = array();
     }
     ?>
-    <h3>Project Assignment</h3>
-    <p>Select which projects this Site Manager is assigned to. (Only Site-Head Masters and Admins can modify this).</p>
-    <table class="form-table">
-        <tr>
-            <th><label>Assigned Projects</label></th>
-            <td>
-                <?php if (empty($projects)) : ?>
-                    <p>No projects available.</p>
-                <?php else : ?>
-                    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                        <?php foreach ($projects as $project) : ?>
-                            <label style="display: flex; align-items: center; gap: 5px; background: #f8fafc; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
-                                <input type="checkbox" name="crm_assigned_projects[]" value="<?php echo esc_attr($project['name']); ?>" <?php checked(in_array($project['name'], $assigned_projects)); ?>>
-                                <strong><?php echo esc_html($project['name']); ?></strong>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </td>
-        </tr>
-    </table>
+    <div id="crm-project-assignment-wrapper" style="display: <?php echo $is_site_manager ? 'block' : 'none'; ?>;">
+        <h3>Project Assignment</h3>
+        <p>Select which projects this Site Manager is assigned to. (Only Site-Head Masters and Admins can modify this).</p>
+        <table class="form-table">
+            <tr>
+                <th><label>Assigned Projects</label></th>
+                <td>
+                    <?php if (empty($projects)) : ?>
+                        <p>No projects available.</p>
+                    <?php else : ?>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <?php foreach ($projects as $project) : ?>
+                                <label style="display: flex; align-items: center; gap: 5px; background: #f8fafc; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                                    <input type="checkbox" name="crm_assigned_projects[]" value="<?php echo esc_attr($project['name']); ?>" <?php checked(in_array($project['name'], $assigned_projects)); ?>>
+                                    <strong><?php echo esc_html($project['name']); ?></strong>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const roleSelect = document.getElementById('role');
+        const wrapper = document.getElementById('crm-project-assignment-wrapper');
+        
+        function toggleProjects() {
+            if (roleSelect && wrapper) {
+                if (roleSelect.value === 'site_manager') {
+                    wrapper.style.display = 'block';
+                } else {
+                    wrapper.style.display = 'none';
+                }
+            }
+        }
+
+        if (roleSelect) {
+            roleSelect.addEventListener('change', toggleProjects);
+            // Run on load in case it's a new user form
+            toggleProjects();
+        }
+    });
+    </script>
     <?php
 }
 
 // Save the Assigned Projects fields
 add_action('personal_options_update', 'crm_save_site_manager_project_fields');
 add_action('edit_user_profile_update', 'crm_save_site_manager_project_fields');
+add_action('user_register', 'crm_save_site_manager_project_fields');
 
 function crm_save_site_manager_project_fields($user_id) {
     // Check permissions
