@@ -519,6 +519,8 @@ function crm_handle_enquiries_crud() {
                 'cp_name' => sanitize_text_field($_POST['cp_name']),
                 'cp_contact' => sanitize_text_field($_POST['cp_contact']),
                 'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
+                'sourcing_manager' => isset($_POST['sourcing_manager']) ? sanitize_text_field($_POST['sourcing_manager']) : '',
+                'pre_sales' => isset($_POST['pre_sales']) ? sanitize_text_field($_POST['pre_sales']) : '',
             );
 
             $wpdb->update($table_name, $data, array('id' => intval($_POST['id'])));
@@ -573,6 +575,8 @@ function crm_enquiries_page_html() {
                 }
             }
             echo '</select></td></tr>';
+            echo '<tr><th scope="row"><label for="sourcing_manager">Sourcing Manager</label></th><td><input name="sourcing_manager" type="text" id="sourcing_manager" value="' . esc_attr($enquiry->sourcing_manager) . '" class="regular-text"></td></tr>';
+            echo '<tr><th scope="row"><label for="pre_sales">Pre-sales</label></th><td><input name="pre_sales" type="text" id="pre_sales" value="' . esc_attr($enquiry->pre_sales) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="name">Name</label></th><td><input name="name" type="text" id="name" value="' . esc_attr($enquiry->name) . '" class="regular-text" required></td></tr>';
             echo '<tr><th scope="row"><label for="contact">Contact</label></th><td><input name="contact" type="text" id="contact" value="' . esc_attr($enquiry->contact) . '" class="regular-text" required></td></tr>';
             echo '<tr><th scope="row"><label for="email">Email</label></th><td><input name="email" type="email" id="email" value="' . esc_attr($enquiry->email) . '" class="regular-text" required></td></tr>';
@@ -763,10 +767,11 @@ function crm_enquiries_page_html() {
     echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
     echo '</div>';
 
-    echo '<table class="wp-list-table widefat fixed striped table-view-list">';
+    echo '<div class="crm-table-responsive" style="overflow-x: auto; width: 100%; margin-bottom: 15px;">';
+    echo '<table class="wp-list-table widefat fixed striped table-view-list" style="min-width: 1100px; margin-bottom: 0;">';
     echo '<thead><tr>';
     echo '<th class="manage-column column-cb check-column" style="width:2.2em;"><input type="checkbox" id="cb-select-all-1"></th>';
-    echo '<th>Date</th><th>Project</th><th>Name</th><th>Closing Manager</th><th>Contact</th><th>Lead</th><th>Config</th><th>Budget</th><th>Source</th>';
+    echo '<th>Date</th><th>Project</th><th>Name</th><th>Closing Manager</th><th>Sourcing Manager</th><th>Contact</th><th>Lead</th><th>Config</th><th>Budget</th><th>Source</th>';
     echo '</tr></thead>';
     echo '<tbody>';
     if ($results) {
@@ -804,6 +809,8 @@ function crm_enquiries_page_html() {
                 echo '<br><button type="button" class="view-feedback-btn" data-enquiry="' . $safe_row_json . '" style="background: none; border: none; padding: 0; margin-top: 4px; color: #d4af37; font-weight: 600; font-size: 11px; cursor: pointer; text-decoration: none; outline: none; transition: color 0.2s;" onmouseover="this.style.color=\'#b5952f\'" onmouseout="this.style.color=\'#d4af37\'">View Feedback</button>';
             }
             echo '</td>';
+            
+            echo '<td>' . esc_html(!empty($row->sourcing_manager) ? $row->sourcing_manager : '-') . '</td>';
 
             echo '<td> ' . esc_html($row->contact) . ' </td>';
             $status_class = 'status-none';
@@ -828,9 +835,10 @@ function crm_enquiries_page_html() {
             echo '</tr>';
         }
     } else {
-        echo '<tr><td colspan="10">No enquiries found.</td></tr>';
+        echo '<tr><td colspan="11">No enquiries found.</td></tr>';
     }
     echo '</tbody></table>';
+    echo '</div>';
     
     echo '<div class="tablenav bottom" style="margin-top: 10px;">';
     echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
@@ -1936,6 +1944,10 @@ function crm_closing_manager_page_html() {
                                 <input type="text" name="sourcing_manager" id="form-sourcing-manager" placeholder="e.g. Rahul Sharma">
                             </div>
                             <div class="crm-form-group">
+                                <label for="form-pre-sales">Pre-sales</label>
+                                <input type="text" name="pre_sales" id="form-pre-sales" placeholder="e.g. Rajilyn Singh">
+                            </div>
+                            <div class="crm-form-group crm-form-full">
                                 <label for="form-client-age">Client Age</label>
                                 <input type="text" name="client_age" id="form-client-age" placeholder="e.g. 35">
                             </div>
@@ -2105,6 +2117,7 @@ function crm_closing_manager_page_html() {
                     // 2. Populate form fields
                     document.getElementById('form-enquiry-id').value = client.id;
                     document.getElementById('form-sourcing-manager').value = client.sourcing_manager || '';
+                    document.getElementById('form-pre-sales').value = client.pre_sales || '';
                     document.getElementById('form-client-age').value = client.client_age || '';
                     document.getElementById('form-sop-amount').value = client.sop_amount || '';
                     document.getElementById('form-ready-down').value = client.ready_down_payment || '';
@@ -2278,6 +2291,7 @@ function crm_closing_manager_page_html() {
                                 // Merge modifications
                                 currentClient.lead_status = statusVal;
                                 currentClient.sourcing_manager = document.getElementById('form-sourcing-manager').value;
+                                currentClient.pre_sales = document.getElementById('form-pre-sales').value;
                                 currentClient.client_age = document.getElementById('form-client-age').value;
                                 currentClient.visit_type = document.getElementById('form-visit-type').value;
                                 currentClient.visit_attended_by = document.getElementById('form-visit-attended-by').value;
