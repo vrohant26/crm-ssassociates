@@ -757,7 +757,11 @@ function crm_enquiries_page_html() {
     echo '<option value="delete">Delete</option>';
     echo '</select>';
     echo '<input type="submit" id="doaction" class="button action" value="Apply" onclick="var action = document.querySelector(\'select[name=bulk_action]\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
-    echo '</div></div>';
+    echo '</div>';
+    
+    $total_items = is_array($results) ? count($results) : 0;
+    echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
+    echo '</div>';
 
     echo '<table class="wp-list-table widefat fixed striped table-view-list">';
     echo '<thead><tr>';
@@ -827,6 +831,11 @@ function crm_enquiries_page_html() {
         echo '<tr><td colspan="10">No enquiries found.</td></tr>';
     }
     echo '</tbody></table>';
+    
+    echo '<div class="tablenav bottom" style="margin-top: 10px;">';
+    echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
+    echo '</div>';
+    
     echo '</form>';
     echo '<script>
     document.getElementById("cb-select-all-1").addEventListener("click", function() {
