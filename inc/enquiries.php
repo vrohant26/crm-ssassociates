@@ -43,6 +43,7 @@ function crm_create_enquiries_table() {
         s_m varchar(255) DEFAULT '' NOT NULL,
         next_action_date date DEFAULT '0000-00-00' NOT NULL,
         next_action_remarks text NOT NULL,
+        assessment_saved tinyint(1) DEFAULT 0 NOT NULL,
         PRIMARY KEY  (id)
     ) $charset_collate;";
 
@@ -241,7 +242,6 @@ function crm_handle_enquiry_submission() {
         'reference_name' => isset($_POST['reference_name']) ? sanitize_text_field($_POST['reference_name']) : '',
         'cp_name' => sanitize_text_field($_POST['cp_name']),
         'cp_contact' => sanitize_text_field($_POST['cp_contact']),
-        'signature' => wp_kses_post($_POST['signature']), // base64 image
         'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
     );
 
@@ -268,7 +268,16 @@ function crm_enquiries_menu() {
         );
     }
 
-
+    if (current_user_can('manage_options') || crm_is_site_head_master()) {
+        add_submenu_page(
+            'crm-enquiries',
+            'Manage Projects',
+            'Manage Projects',
+            'read',
+            'crm-projects',
+            'crm_projects_page_html'
+        );
+    }
 }
 add_action('admin_menu', 'crm_enquiries_menu');
 
@@ -367,7 +376,7 @@ function crm_export_enquiries_csv() {
                 'ID', 'Created At', 'Date Visit', 'Project', 'Name', 'Contact', 'Email', 
                 'Residence', 'Occupation', 'Company Name', 'Company Location', 
                 'Configuration', 'Budget', 'Source', 'Reference Name', 
-                'Channel Partner Name', 'Channel Partner Contact', 'Signature', 'Closing Manager',
+                'Channel Partner Name', 'Channel Partner Contact', 'Closing Manager',
                 'Status Rating', 'Sourcing Manager', 'Client Age', 'Visit Frequency',
                 'Visit Attended By', 'Funding Option', 'SOP Amount', 'Ready Down Payment',
                 'Own Contribution', 'Preferred Unit', 'Preferred Floor', 'Preferred Budget',
@@ -407,7 +416,6 @@ function crm_export_enquiries_csv() {
                     $row['reference_name'],
                     $row['cp_name'],
                     $row['cp_contact'],
-                    !empty($row['signature']) ? 'Yes' : 'No',
                     $manager_name,
                     $row['lead_status'],
                     $row['sourcing_manager'],
@@ -522,8 +530,11 @@ function crm_enquiries_page_html() {
             echo '<table class="form-table" role="presentation">';
             echo '<tr><th scope="row"><label for="building_name">Project</label></th><td>';
             echo '<select name="building_name" id="building_name" class="regular-text">';
-            echo '<option value="Pearl Grace"' . selected($enquiry->building_name, 'Pearl Grace', false) . '>Pearl Grace</option>';
-            echo '<option value="MK Crown"' . selected($enquiry->building_name, 'MK Crown', false) . '>MK Crown</option>';
+            $all_projects = crm_get_projects();
+            foreach ($all_projects as $proj) {
+                $p_name = esc_attr($proj['name']);
+                echo '<option value="' . $p_name . '"' . selected($enquiry->building_name, $p_name, false) . '>' . esc_html($p_name) . '</option>';
+            }
             echo '</select></td></tr>';
             echo '<tr><th scope="row"><label for="date_visit">Date Visit</label></th><td><input name="date_visit" type="date" id="date_visit" value="' . esc_attr($enquiry->date_visit) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="closing_manager_id">Closing Manager</label></th><td>';
@@ -644,8 +655,11 @@ function crm_enquiries_page_html() {
     echo '<label style="display:block; margin-bottom:5px;" for="building_name_filter">Project:</label>';
     echo '<select id="building_name_filter" name="building_name" style="padding: 3px 8px; height: 28px; width: 120px">';
     echo '<option value="">All Projects</option>';
-    echo '<option value="Pearl Grace"' . selected($project_filter, 'Pearl Grace', false) . '>Pearl Grace</option>';
-    echo '<option value="MK Crown"' . selected($project_filter, 'MK Crown', false) . '>MK Crown</option>';
+    $all_projects = crm_get_projects();
+    foreach ($all_projects as $proj) {
+        $p_name = esc_attr($proj['name']);
+        echo '<option value="' . $p_name . '"' . selected($project_filter, $p_name, false) . '>' . esc_html($p_name) . '</option>';
+    }
     echo '</select>';
     echo '</div>';
     
@@ -1826,10 +1840,6 @@ function crm_closing_manager_page_html() {
                                 <label>Stated Budget</label>
                                 <span id="info-budget"></span>
                             </div>
-                            <div class="crm-info-item">
-                                <label>Client Signature</label>
-                                <div class="signature-preview-box" id="info-signature"></div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -2030,13 +2040,6 @@ function crm_closing_manager_page_html() {
                     document.getElementById('info-occupation').textContent = client.occupation || '-';
                     document.getElementById('info-configuration').textContent = client.configuration || '-';
                     document.getElementById('info-budget').textContent = client.budget || '-';
-
-                    const sigPreview = document.getElementById('info-signature');
-                    if (client.signature) {
-                        sigPreview.innerHTML = `<img src="${client.signature}" alt="Customer Signature">`;
-                    } else {
-                        sigPreview.innerHTML = `<span style="color:#64748b; font-size:12px; font-style:italic;">No Signature Captured</span>`;
-                    }
 
                     // 2. Populate form fields
                     document.getElementById('form-enquiry-id').value = client.id;
@@ -2304,23 +2307,29 @@ function crm_handle_save_closing_manager_sheet() {
 
     $data = array(
         'lead_status' => sanitize_text_field($_POST['lead_status']),
-        'sourcing_manager' => sanitize_text_field($_POST['sourcing_manager']),
-        'client_age' => sanitize_text_field($_POST['client_age']),
         'visit_type' => sanitize_text_field($_POST['visit_type']),
-        'visit_attended_by' => sanitize_text_field($_POST['visit_attended_by']),
-        'funding_source' => sanitize_text_field($_POST['funding_source']),
-        'sop_amount' => sanitize_text_field($_POST['sop_amount']),
-        'ready_down_payment' => sanitize_text_field($_POST['ready_down_payment']),
-        'own_contribution' => sanitize_text_field($_POST['own_contribution']),
-        'unit_like' => sanitize_text_field($_POST['unit_like']),
-        'unit_floor' => sanitize_text_field($_POST['unit_floor']),
-        'unit_budget' => sanitize_text_field($_POST['unit_budget']),
-        'feedback_by' => $user->display_name,
-        'feedback_details' => sanitize_textarea_field($_POST['feedback_details']),
         's_m' => sanitize_text_field($_POST['s_m']),
         'next_action_date' => !empty($_POST['next_action_date']) ? sanitize_text_field($_POST['next_action_date']) : '0000-00-00',
         'next_action_remarks' => sanitize_textarea_field($_POST['next_action_remarks']),
     );
+
+    $can_override = current_user_can('manage_options') || in_array('crm_site_head', (array) $user->roles) || in_array('crm_site_head_master', (array) $user->roles);
+
+    if (empty($enquiry->assessment_saved) || $can_override) {
+        $data['sourcing_manager'] = sanitize_text_field($_POST['sourcing_manager']);
+        $data['client_age'] = sanitize_text_field($_POST['client_age']);
+        $data['visit_attended_by'] = sanitize_text_field($_POST['visit_attended_by']);
+        $data['funding_source'] = sanitize_text_field($_POST['funding_source']);
+        $data['sop_amount'] = sanitize_text_field($_POST['sop_amount']);
+        $data['ready_down_payment'] = sanitize_text_field($_POST['ready_down_payment']);
+        $data['own_contribution'] = sanitize_text_field($_POST['own_contribution']);
+        $data['unit_like'] = sanitize_text_field($_POST['unit_like']);
+        $data['unit_floor'] = sanitize_text_field($_POST['unit_floor']);
+        $data['unit_budget'] = sanitize_text_field($_POST['unit_budget']);
+        $data['feedback_by'] = $user->display_name;
+        $data['feedback_details'] = sanitize_textarea_field($_POST['feedback_details']);
+        $data['assessment_saved'] = 1;
+    }
 
     $updated = $wpdb->update($table_name, $data, array('id' => $id));
 
@@ -2357,6 +2366,9 @@ function crm_handle_get_client_followup_history() {
 
     $formatted_history = array();
     foreach ($history as $item) {
+        $dt = new DateTime($item->created_at, new DateTimeZone('UTC'));
+        $dt->setTimezone(new DateTimeZone('Asia/Kolkata'));
+
         $formatted_history[] = array(
             'id' => $item->id,
             's_m' => esc_html($item->s_m),
@@ -2365,9 +2377,166 @@ function crm_handle_get_client_followup_history() {
             'remarks' => esc_html($item->remarks),
             'added_by' => esc_html($item->added_by),
             'created_at' => $item->created_at,
-            'formatted_created_at' => date('d M Y, h:i A', strtotime($item->created_at)),
+            'formatted_created_at' => $dt->format('d M Y, h:i A'),
         );
     }
 
     wp_send_json_success(array('history' => $formatted_history));
+}
+
+// Manage Projects HTML Callback
+function crm_projects_page_html() {
+    if (!current_user_can('manage_options') && !crm_is_site_head_master()) {
+        wp_die(__('You do not have sufficient permissions to access this page.'));
+    }
+
+    // Handle form submissions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crm_project_action']) && check_admin_referer('crm_save_project_nonce')) {
+        $projects = crm_get_projects();
+        $action = sanitize_text_field($_POST['crm_project_action']);
+
+        if ($action === 'add' || $action === 'edit') {
+            $name = sanitize_text_field($_POST['project_name']);
+            $logo = esc_url_raw($_POST['project_logo']);
+            $budgets_raw = sanitize_text_field($_POST['project_budgets']);
+            $budgets = array_map('trim', explode(',', $budgets_raw));
+            $budgets = array_filter($budgets); // Remove empty
+
+            if (empty($budgets)) {
+                $budgets = array("70 L to 85 L", "85 L to 1 CR", "1 CR to 1.25 CR");
+            }
+
+            if ($action === 'add') {
+                $projects[] = array(
+                    'name' => $name,
+                    'logo' => $logo,
+                    'budget_ranges' => array_values($budgets)
+                );
+            } else if ($action === 'edit') {
+                $index = intval($_POST['project_index']);
+                if (isset($projects[$index])) {
+                    $projects[$index]['name'] = $name;
+                    $projects[$index]['logo'] = $logo;
+                    $projects[$index]['budget_ranges'] = array_values($budgets);
+                }
+            }
+            update_option('crm_projects', $projects);
+            echo '<div class="updated"><p>Project saved successfully.</p></div>';
+        } elseif ($action === 'delete') {
+            $index = intval($_POST['project_index']);
+            if (isset($projects[$index])) {
+                unset($projects[$index]);
+                $projects = array_values($projects); // Re-index
+                update_option('crm_projects', $projects);
+                echo '<div class="updated"><p>Project deleted successfully.</p></div>';
+            }
+        }
+    }
+
+    $projects = crm_get_projects();
+    ?>
+    <div class="wrap">
+        <h1 class="wp-heading-inline">Manage Projects & Budgets</h1>
+        <hr class="wp-header-end">
+
+        <div style="display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap;">
+            <!-- Add/Edit Form -->
+            <div style="flex: 1; min-width: 300px; max-width: 400px; background: #fff; padding: 20px; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+                <h2 id="form-title" style="margin-top: 0;">Add New Project</h2>
+                <form method="POST">
+                    <?php wp_nonce_field('crm_save_project_nonce'); ?>
+                    <input type="hidden" name="crm_project_action" id="crm_project_action" value="add">
+                    <input type="hidden" name="project_index" id="project_index" value="">
+
+                    <p>
+                        <label for="project_name" style="font-weight: 600;">Project Name</label><br>
+                        <input type="text" name="project_name" id="project_name" class="regular-text" style="width: 100%; margin-top: 5px;" required>
+                    </p>
+                    <p>
+                        <label for="project_logo" style="font-weight: 600;">Logo URL</label><br>
+                        <input type="url" name="project_logo" id="project_logo" class="regular-text" style="width: 100%; margin-top: 5px;" required>
+                        <small>Provide an absolute URL to the project logo image.</small>
+                    </p>
+                    <p>
+                        <label for="project_budgets" style="font-weight: 600;">Budget Ranges (Comma Separated)</label><br>
+                        <textarea name="project_budgets" id="project_budgets" rows="4" style="width: 100%; margin-top: 5px;" required></textarea>
+                        <small>e.g. 70 L to 85 L, 85 L to 1 CR, 1 CR to 1.25 CR</small>
+                    </p>
+                    <p>
+                        <button type="submit" class="button button-primary" id="submit_btn">Add Project</button>
+                        <button type="button" class="button" id="cancel_btn" style="display:none;" onclick="resetForm()">Cancel Edit</button>
+                    </p>
+                </form>
+            </div>
+
+            <!-- List Projects -->
+            <div style="flex: 2; min-width: 400px;">
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Logo</th>
+                            <th>Project Name</th>
+                            <th>Budget Ranges</th>
+                            <th style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($projects)): ?>
+                            <tr><td colspan="4">No projects found.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($projects as $index => $project): ?>
+                                <tr>
+                                    <td><img src="<?php echo esc_url($project['logo']); ?>" style="max-width: 50px; max-height: 50px;"></td>
+                                    <td><strong><?php echo esc_html($project['name']); ?></strong></td>
+                                    <td>
+                                        <?php 
+                                        if (isset($project['budget_ranges']) && is_array($project['budget_ranges'])) {
+                                            foreach ($project['budget_ranges'] as $budget) {
+                                                echo '<span style="display:inline-block; background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px; margin:2px;">' . esc_html($budget) . '</span>';
+                                            }
+                                        }
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="button button-small" onclick="editProject(<?php echo $index; ?>, '<?php echo esc_js($project['name']); ?>', '<?php echo esc_js($project['logo']); ?>', '<?php echo esc_js(implode(', ', $project['budget_ranges'])); ?>')">Edit</button>
+                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this project?');">
+                                            <?php wp_nonce_field('crm_save_project_nonce'); ?>
+                                            <input type="hidden" name="crm_project_action" value="delete">
+                                            <input type="hidden" name="project_index" value="<?php echo $index; ?>">
+                                            <button type="submit" class="button button-small button-link-delete" style="color: #a00;">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function editProject(index, name, logo, budgets) {
+            document.getElementById('form-title').innerText = 'Edit Project';
+            document.getElementById('crm_project_action').value = 'edit';
+            document.getElementById('project_index').value = index;
+            document.getElementById('project_name').value = name;
+            document.getElementById('project_logo').value = logo;
+            document.getElementById('project_budgets').value = budgets;
+            document.getElementById('submit_btn').innerText = 'Update Project';
+            document.getElementById('cancel_btn').style.display = 'inline-block';
+        }
+
+        function resetForm() {
+            document.getElementById('form-title').innerText = 'Add New Project';
+            document.getElementById('crm_project_action').value = 'add';
+            document.getElementById('project_index').value = '';
+            document.getElementById('project_name').value = '';
+            document.getElementById('project_logo').value = '';
+            document.getElementById('project_budgets').value = '';
+            document.getElementById('submit_btn').innerText = 'Add Project';
+            document.getElementById('cancel_btn').style.display = 'none';
+        }
+    </script>
+    <?php
 }

@@ -18,6 +18,33 @@ function initCRMForm() {
                 formLogoImg.src = logo;
                 formLogoImg.alt = project + ' Logo';
 
+                // Update Budget Pills dynamically
+                if (window.crmProjects) {
+                    const selectedProject = window.crmProjects.find(p => p.name === project);
+                    if (selectedProject && selectedProject.budget_ranges && selectedProject.budget_ranges.length > 0) {
+                        const budgetPillsContainer = document.getElementById('budget-pills');
+                        const budgetInput = document.getElementById('budget-input');
+                        if (budgetPillsContainer && budgetInput) {
+                            // Clear existing pills
+                            budgetPillsContainer.innerHTML = '';
+                            budgetInput.value = ''; // Reset input
+                            
+                            // Generate new pills
+                            selectedProject.budget_ranges.forEach(range => {
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'pill';
+                                btn.dataset.value = range;
+                                btn.textContent = range;
+                                budgetPillsContainer.appendChild(btn);
+                            });
+                            
+                            // Re-bind click events for the new pills
+                            setupPills('budget-pills', 'budget-input');
+                        }
+                    }
+                }
+
                 // Transition views
                 projectSelector.classList.remove('fade-in');
                 projectSelector.classList.add('hidden');
@@ -67,7 +94,20 @@ function initCRMForm() {
     }
 
     setupPills('occupation-pills', 'occupation-input');
-    setupPills('config-pills', 'config-input');
+    setupPills('config-pills', 'config-input', function(value) {
+        const carpetWrapper = document.getElementById('carpet-area-wrapper');
+        const carpetInput = document.getElementById('carpet-area-input');
+        if (value === 'Commercial/Shops') {
+            if (carpetWrapper) carpetWrapper.classList.remove('hidden');
+            if (carpetInput) carpetInput.setAttribute('required', 'required');
+        } else {
+            if (carpetWrapper) carpetWrapper.classList.add('hidden');
+            if (carpetInput) {
+                carpetInput.removeAttribute('required');
+                carpetInput.value = '';
+            }
+        }
+    });
     setupPills('budget-pills', 'budget-input');
     setupPills('source-pills', 'source-input', function(value) {
         const refWrapper = document.getElementById('reference-wrapper');
@@ -75,6 +115,7 @@ function initCRMForm() {
         const partnerWrapper = document.getElementById('channel-partner-wrapper');
         const cpNameInput = document.getElementById('cp-name-input');
         const cpContactInput = document.getElementById('cp-contact-input');
+        const cpFirmNameInput = document.getElementById('cp-firm-name-input');
 
         // Reference Toggle
         if (value === 'Reference') {
@@ -97,6 +138,7 @@ function initCRMForm() {
                 cpNameInput.value = '';
             }
             if (cpContactInput) cpContactInput.value = '';
+            if (cpFirmNameInput) cpFirmNameInput.value = '';
         }
     });
 
@@ -261,6 +303,14 @@ function initCRMForm() {
                         partnerWrapper.classList.add('hidden');
                         const cpNameInput = document.getElementById('cp-name-input');
                         if (cpNameInput) cpNameInput.removeAttribute('required');
+                    }
+
+                    // Hide carpet area wrapper
+                    const carpetWrapper = document.getElementById('carpet-area-wrapper');
+                    if (carpetWrapper) {
+                        carpetWrapper.classList.add('hidden');
+                        const carpetInput = document.getElementById('carpet-area-input');
+                        if (carpetInput) carpetInput.removeAttribute('required');
                     }
 
                     // Clear signature

@@ -8,23 +8,33 @@
 
         <div class="app-container">
              
+            <!-- Dynamic Project Data -->
+            <script>
+                window.crmProjects = <?php echo json_encode(crm_get_projects()); ?>;
+            </script>
+
             <!-- Project Selection Screen -->
             <div id="project-selector-section" class="fade-in" style="max-width: 700px; margin: 2rem auto; padding: 3rem 2rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); text-align: center;">
                 <h2 style="font-size: 1.8rem; color: #1e293b; font-weight: 700; margin-bottom: 0.5rem;">Select Property Portal</h2>
                 <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2.5rem;">Choose a project to begin client check-in registration.</p>
                 
                 <div class="project-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 1.5rem; justify-content: center;">
-                    <!-- Pearl Grace Card -->
-                    <div class="project-card" data-project="Pearl Grace" data-logo="<?php echo get_template_directory_uri(); ?>/pearl-grace-logo.png" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
-                        <img src="<?php echo get_template_directory_uri(); ?>/pearl-grace-logo.png" alt="Pearl Grace" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
-                        <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">Pearl Grace</span>
-                    </div>
-                    <!-- MK Crown Card -->
-                    <div class="project-card" data-project="MK Crown" data-logo="<?php echo get_template_directory_uri(); ?>/mk-crown-logo.png" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
-                        <img src="<?php echo get_template_directory_uri(); ?>/mk-crown-logo.png" alt="MK Crown" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
-                        <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">MK Crown</span>
-                    </div>
-
+                    <?php
+                    $projects = crm_get_projects();
+                    if (!empty($projects)) {
+                        foreach ($projects as $project) {
+                            $proj_name = esc_attr($project['name']);
+                            $proj_logo = esc_url($project['logo']);
+                            ?>
+                            <!-- <?php echo esc_html($project['name']); ?> Card -->
+                            <div class="project-card" data-project="<?php echo $proj_name; ?>" data-logo="<?php echo $proj_logo; ?>" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; box-shadow: 0 4px 6px rgba(0,0,0,0.01);">
+                                <img src="<?php echo $proj_logo; ?>" alt="<?php echo $proj_name; ?>" style="max-height: 55px; width: auto; margin-bottom: 1rem; border-radius: 6px;">
+                                <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem;"><?php echo esc_html($project['name']); ?></span>
+                            </div>
+                            <?php
+                        }
+                    }
+                    ?>
                 </div>
             </div>
 
@@ -149,8 +159,15 @@
                 <div class="pill-group" id="config-pills">
                     <button type="button" class="pill" data-value="1 BHK">1 BHK</button>
                     <button type="button" class="pill" data-value="2 BHK">2 BHK</button>
+                    <button type="button" class="pill" data-value="Jodi">Jodi</button>
+                    <button type="button" class="pill" data-value="Commercial/Shops">Commercial/Shops</button>
                 </div>
                 <input type="hidden" name="configuration" id="config-input" required>
+
+                <div id="carpet-area-wrapper" class="input-group mt-3 hidden">
+                    <label>Carpet Area</label>
+                    <input type="text" name="carpet_area" id="carpet-area-input" placeholder="e.g. 500 sq.ft.">
+                </div>
 
                 <label class="section-label mt-3">Budget</label>
                 <div class="pill-group" id="budget-pills">
@@ -210,6 +227,10 @@
                 </div>
 
                 <div id="channel-partner-wrapper" class="form-grid mt-3 hidden">
+                    <div class="input-group full-width">
+                        <label>Channel Partner Firm Name</label>
+                        <input type="text" name="cp_firm_name" id="cp-firm-name-input" placeholder="Firm Name">
+                    </div>
                     <div class="input-group">
                         <label>Channel Partner Name</label>
                         <input type="text" name="cp_name" id="cp-name-input" placeholder="Partner Name">
@@ -258,6 +279,30 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                     </div>
+                </div>
+                <div class="input-group" style="margin-top: 1.25rem;">
+                    <label>Sales Manager</label>
+                    <input type="text" name="sales_manager" placeholder="Sales Manager Name">
+                </div>
+                <div class="input-group" style="margin-top: 1.25rem;">
+                    <label>Sourcing Manager</label>
+                    <input type="text" name="sourcing_manager" placeholder="e.g. Rahul Sharma">
+                </div>
+            </div>
+
+            <div class="form-section card" id="section-presales">
+                <div class="section-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                    <div class="section-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                    <div class="section-title">
+                        <h3>Pre-sales</h3>
+                        <p>Enter the Pre-sales Representative handling this lead.</p>
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 1.5rem;">
+                    <label>Pre-sales Representative</label>
+                    <input type="text" name="pre_sales" placeholder="Pre-sales Name">
                 </div>
             </div>
 

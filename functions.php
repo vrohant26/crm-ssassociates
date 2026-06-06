@@ -35,3 +35,56 @@ add_filter('admin_footer_text', function () {
 });
 
 add_filter('update_footer', '__return_empty_string', 11);
+
+/**
+ * CRM Helper Functions
+ */
+
+// Get all dynamic projects
+function crm_get_projects() {
+    $projects = get_option('crm_projects');
+    
+    $default_budgets = array("70 L to 85 L", "85 L to 1 CR", "1 CR to 1.25 CR", "1.25 CR to 1.50 CR", "1.50 CR to 1.75 CR", "1.75 CR to 2.00 CR", "2.00 CR to 2.25 CR");
+
+    // Fallback to defaults if empty
+    if (empty($projects) || !is_array($projects)) {
+        $projects = array(
+            array('name' => 'Pearl Grace', 'logo' => get_template_directory_uri() . '/pearl-grace-logo.png', 'budget_ranges' => $default_budgets),
+            array('name' => 'MK Crown', 'logo' => get_template_directory_uri() . '/mk-crown-logo.png', 'budget_ranges' => $default_budgets),
+            array('name' => 'Navrang Elite', 'logo' => get_template_directory_uri() . '/navrang-elite-logo.jpg', 'budget_ranges' => $default_budgets),
+            array('name' => 'MK Harmony', 'logo' => get_template_directory_uri() . '/mk-harmony-logo.jpg', 'budget_ranges' => $default_budgets),
+            array('name' => 'MK Imperial', 'logo' => get_template_directory_uri() . '/mk-imperial-logo.png', 'budget_ranges' => $default_budgets)
+        );
+        // Optionally save the default state so they are editable right away
+        update_option('crm_projects', $projects);
+    } else {
+        // Ensure all existing projects have budget_ranges backward compatibility
+        $updated = false;
+        foreach ($projects as &$project) {
+            if (!isset($project['budget_ranges']) || !is_array($project['budget_ranges'])) {
+                $project['budget_ranges'] = $default_budgets;
+                $updated = true;
+            }
+        }
+        if ($updated) {
+            update_option('crm_projects', $projects);
+        }
+    }
+    return $projects;
+}
+
+// Role Checkers
+function crm_is_site_head($user = null) {
+    if (!$user) $user = wp_get_current_user();
+    return in_array('crm_site_head', (array) $user->roles);
+}
+
+function crm_is_site_head_master($user = null) {
+    if (!$user) $user = wp_get_current_user();
+    return in_array('crm_site_head_master', (array) $user->roles);
+}
+
+function crm_is_closing_manager($user = null) {
+    if (!$user) $user = wp_get_current_user();
+    return in_array('crm_closing_manager', (array) $user->roles);
+}

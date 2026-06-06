@@ -142,6 +142,17 @@ get_header();
                 }
 
                 $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY id DESC");
+                
+                // Fetch Today's Tasks
+                $today = date('Y-m-d');
+                $today_where = "WHERE next_action_date = %s";
+                $today_args = array($today);
+                if (!$is_admin) {
+                    $today_where .= " AND closing_manager_id = %d";
+                    $today_args[] = $user->ID;
+                }
+                $today_tasks_query = $wpdb->prepare("SELECT id, name, contact, building_name, next_action_date, next_action_remarks FROM $table_name $today_where ORDER BY id DESC", ...$today_args);
+                $today_tasks = $wpdb->get_results($today_tasks_query);
                 ?>
 
                 <style>
@@ -233,6 +244,7 @@ get_header();
                     .status-hot { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
                     .status-warm { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
                     .status-cold { background: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
+                    .status-booked { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
                     .status-lost { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
                     .status-none { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
                 </style>
@@ -247,6 +259,46 @@ get_header();
                             Log Out Portal
                         </a>
                     </div>
+                </div>
+
+                <!-- Today's Tasks Module -->
+                <div class="crm-todays-tasks" style="margin-bottom: 2rem;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        <h2 style="font-size: 1.3rem; font-weight: 700; color: #1e293b; margin: 0;">Today's Tasks</h2>
+                    </div>
+                    
+                    <?php if (!empty($today_tasks)) : ?>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                            <?php foreach ($today_tasks as $task) : ?>
+                                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #1e293b;"><?php echo esc_html($task->name); ?></h4>
+                                            <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;"><?php echo esc_html($task->building_name ?: 'Pearl Grace'); ?></span>
+                                        </div>
+                                        <a href="?client_id=<?php echo $task->id; ?>" title="View Assessment" style="color: #cbd5e1; transition: color 0.2s;" onmouseover="this.style.color='#d4af37';" onmouseout="this.style.color='#cbd5e1';">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        </a>
+                                    </div>
+                                    <p style="margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.4; flex-grow: 1;">
+                                        <strong>Action:</strong> <?php echo esc_html($task->next_action_remarks ?: 'No details provided.'); ?>
+                                    </p>
+                                    <div style="margin-top: 5px;">
+                                        <a href="tel:<?php echo esc_attr($task->contact); ?>" class="crm-btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; width: 100%; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 600; background: #d4af37; color: white; transition: background 0.2s;" onmouseover="this.style.background='#b5952f';" onmouseout="this.style.background='#d4af37';">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                            Call <?php echo esc_html($task->contact); ?>
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else : ?>
+                        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 2rem; text-align: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            <p style="margin: 0; color: #64748b; font-size: 0.95rem; font-weight: 500;">You have no scheduled tasks for today!</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Dashboard Filters -->
@@ -354,11 +406,39 @@ get_header();
             <!-- Custom Styling for Closing Manager Sheet -->
             <style>
                 #crm-fullscreen-body {
-                    display: grid;
-                    grid-template-columns: 1fr 1.3fr;
-                    gap: 2rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
                     margin-top: 1rem;
+                    max-width: 800px;
+                    margin-left: auto;
+                    margin-right: auto;
                 }
+
+                /* Accordion Styles */
+                .crm-accordion { margin-bottom: 0.5rem; }
+                .crm-accordion-header {
+                    display: flex; justify-content: space-between; align-items: center;
+                    cursor: pointer; padding: 1.25rem 1.5rem; background: var(--card-bg, #ffffff);
+                    border-radius: 12px; border: 1px solid #e2e8f0;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: all 0.3s ease;
+                }
+                .crm-accordion-header:hover { background: #f8fafc; }
+                .crm-accordion-header.active {
+                    border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+                    border-bottom: 1px solid #f1f5f9;
+                }
+                .crm-accordion-content {
+                    background: var(--card-bg, #ffffff); padding: 1.5rem;
+                    border: 1px solid #e2e8f0; border-top: none;
+                    border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+                    display: none;
+                }
+                .crm-accordion-content.active { display: block; }
+                .crm-accordion-icon { transition: transform 0.3s ease; color: #64748b; }
+                .crm-accordion-header.active .crm-accordion-icon { transform: rotate(180deg); }
+
                 
                 /* Toast styles */
                 .crm-toast {
@@ -395,6 +475,7 @@ get_header();
                 .status-hot { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
                 .status-warm { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
                 .status-cold { background: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
+                .status-booked { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
                 .status-lost { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
                 .status-none { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
@@ -502,6 +583,20 @@ get_header();
                     background: #0284c7 !important;
                     color: white !important;
                     border-color: #0284c7 !important;
+                }
+                
+                .pill.pill-booked {
+                    border-color: #a7f3d0 !important;
+                    color: #059669 !important;
+                    background: transparent;
+                }
+                .pill.pill-booked:hover {
+                    background: #ecfdf5 !important;
+                }
+                .pill.pill-booked.active {
+                    background: #10b981 !important;
+                    color: white !important;
+                    border-color: #10b981 !important;
                 }
 
                 .pill.pill-lost {
@@ -719,233 +814,319 @@ get_header();
                     <input type="hidden" name="funding_source" id="form-funding-source" value="<?php echo esc_attr($single_client->funding_source); ?>">
 
                     <div id="crm-fullscreen-body">
-                        <!-- Left Panel: Read Only Visitor profile card -->
-                        <div style="display: flex; flex-direction: column; gap: 2rem;">
-                            <div class="form-section card">
-                                <div class="section-header">
-                                    <div class="section-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                    </div>
-                                    <div class="section-title">
-                                        <h3>Customer Visit Details</h3>
-                                        <p>Personal profile enquired during check-in.</p>
-                                    </div>
-                                </div>
-                                <div class="crm-info-grid">
-                                    <div class="crm-info-item">
-                                        <label>Date of Visit</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($single_client->date_visit))); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Project</label>
-                                        <span style="font-weight: 600; color: #1e293b;"><?php echo esc_html(!empty($single_client->building_name) ? $single_client->building_name : 'Pearl Grace'); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Full Name</label>
-                                        <span style="font-weight: 700; color: #1e293b;"><?php echo esc_html($single_client->name); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Contact Info</label>
-                                        <a href="tel:<?php echo esc_attr($single_client->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 700; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--crm-gold, #d4af37)';" onmouseout="this.style.color='var(--crm-gold-dark, #b5952f)';">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                                            <?php echo esc_html($single_client->contact); ?>
-                                        </a>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Residence Location</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->residence ? $single_client->residence : '-'); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Occupation Status</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->occupation ? $single_client->occupation : '-'); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Required Configuration</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->configuration ? $single_client->configuration : '-'); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Purchase Budget</label>
-                                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->budget ? $single_client->budget : '-'); ?></span>
-                                    </div>
-                                    <div class="crm-info-item">
-                                        <label>Customer Signature</label>
-                                        <div class="signature-preview-box">
-                                            <?php if (!empty($single_client->signature)) : ?>
-                                                <img src="<?php echo esc_url($single_client->signature); ?>" alt="Customer Signature" style="max-height:85px; display:block; margin:0 auto;">
-                                            <?php else : ?>
-                                                <span style="color:#64748b; font-size:12px; font-style:italic;">No Signature Captured</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Right Panel: Editable annotations fields (Matches Pearl Grace Client Form exactly) -->
-                        <div style="display: flex; flex-direction: column; gap: 2rem;">
-                            <div class="form-section card">
-                                <div class="section-header">
-                                    <div class="section-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                    </div>
-                                    <div class="section-title">
-                                        <h3>Manager Evaluation</h3>
-                                        <p>Fill out the customer rating and visit metadata.</p>
-                                    </div>
-                                </div>
+    <?php
+    $rating = $single_client->lead_status;
+    $visit_type = $single_client->visit_type;
+    $attended = $single_client->visit_attended_by;
+    $funding = $single_client->funding_source;
+    $is_saved = !empty($single_client->assessment_saved);
 
-                                <?php
-                                $rating = $single_client->lead_status;
-                                $visit_type = $single_client->visit_type;
-                                $attended = $single_client->visit_attended_by;
-                                $funding = $single_client->funding_source;
-                                ?>
+    global $wpdb;
+    $followups_table = $wpdb->prefix . 'crm_followups';
+    $followup_history = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $followups_table WHERE enquiry_id = %d ORDER BY created_at DESC",
+        $single_client->id
+    ));
+    ?>
 
-                                <label class="section-label">Client Rating Status</label>
-                                <div class="pill-group" id="rating-pills">
-                                    <button type="button" class="pill pill-hot <?php echo ($rating === 'Hot') ? 'active' : ''; ?>" data-value="Hot">Hot</button>
-                                    <button type="button" class="pill pill-warm <?php echo ($rating === 'Warm') ? 'active' : ''; ?>" data-value="Warm">Warm</button>
-                                    <button type="button" class="pill pill-cold <?php echo ($rating === 'Cold') ? 'active' : ''; ?>" data-value="Cold">Cold</button>
-                                    <button type="button" class="pill pill-lost <?php echo ($rating === 'Lost') ? 'active' : ''; ?>" data-value="Lost">Lost</button>
-                                </div>
+ 
 
-                                <div class="form-grid mt-3">
-                                    <div class="input-group">
-                                        <label>Sourcing Manager</label>
-                                        <input type="text" name="sourcing_manager" id="form-sourcing-manager" placeholder="Manager Name" value="<?php echo esc_attr($single_client->sourcing_manager); ?>">
-                                    </div>
-                                    <div class="input-group">
-                                        <label>Client Age</label>
-                                        <input type="text" name="client_age" id="form-client-age" placeholder="e.g. 35" value="<?php echo esc_attr($single_client->client_age); ?>">
-                                    </div>
-                                </div>
+    <!-- 2. Accordions / Editable content below -->
+    
+    <!-- Accordion: Customer Visit Details -->
+    <div class="crm-accordion">
+        <div class="crm-accordion-header" onclick="toggleAccordion(this)">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="section-icon" style="margin-right:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <div class="section-title" style="margin-bottom:0;">
+                    <h3 style="margin:0; font-size:1.1rem;">Customer Visit Details</h3>
+                    <p style="margin:0; font-size:0.85rem; color:#64748b;">Personal profile enquired during check-in.</p>
+                </div>
+            </div>
+            <div class="crm-accordion-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+        </div>
+        <div class="crm-accordion-content">
+            <div class="crm-info-grid">
+                <div class="crm-info-item">
+                    <label>Date of Visit</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($single_client->date_visit))); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Project</label>
+                    <span style="font-weight: 600; color: #1e293b;"><?php echo esc_html(!empty($single_client->building_name) ? $single_client->building_name : 'Pearl Grace'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Full Name</label>
+                    <span style="font-weight: 700; color: #1e293b;"><?php echo esc_html($single_client->name); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Contact Info</label>
+                    <a href="tel:<?php echo esc_attr($single_client->contact); ?>" style="color: var(--crm-gold-dark, #b5952f); text-decoration: none; font-weight: 700; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--crm-gold, #d4af37)';" onmouseout="this.style.color='var(--crm-gold-dark, #b5952f)';">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        <?php echo esc_html($single_client->contact); ?>
+                    </a>
+                </div>
+                <div class="crm-info-item">
+                    <label>Residence Location</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->residence ? $single_client->residence : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Occupation Status</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->occupation ? $single_client->occupation : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Required Configuration</label>
+                    <span style="font-weight: 500; color: #1e293b;">
+                        <?php 
+                        echo esc_html($single_client->configuration ? $single_client->configuration : '-');
+                        if (isset($single_client->carpet_area) && !empty($single_client->carpet_area)) {
+                            echo ' (Carpet Area: ' . esc_html($single_client->carpet_area) . ')';
+                        }
+                        ?>
+                    </span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Purchase Budget</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->budget ? $single_client->budget : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Sourcing Manager</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->sourcing_manager ? $single_client->sourcing_manager : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Sales Manager</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(isset($single_client->sales_manager) && $single_client->sales_manager ? $single_client->sales_manager : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>Pre-sales</label>
+                    <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html(isset($single_client->pre_sales) && $single_client->pre_sales ? $single_client->pre_sales : '-'); ?></span>
+                </div>
+                <div class="crm-info-item">
+                    <label>How did you hear about us?</label>
+                    <span style="font-weight: 500; color: #1e293b;">
+                        <?php 
+                        $source = $single_client->source;
+                        $display_source = $source;
+                        if ($source === 'Reference' && !empty($single_client->reference_name)) {
+                            $display_source .= ' (Referral Name: ' . $single_client->reference_name . ')';
+                        } elseif ($source === 'Channel Partner') {
+                            $cp_details = array();
+                            if (isset($single_client->cp_firm_name) && !empty($single_client->cp_firm_name)) {
+                                $cp_details[] = 'Firm Name: ' . $single_client->cp_firm_name;
+                            }
+                            if (!empty($single_client->cp_name)) {
+                                $cp_details[] = 'CP Name: ' . $single_client->cp_name;
+                            }
+                            if (!empty($single_client->cp_contact)) {
+                                $cp_details[] = 'CP Contact: ' . $single_client->cp_contact;
+                            }
+                            if (!empty($cp_details)) {
+                                $display_source .= ' (' . implode(', ', $cp_details) . ')';
+                            }
+                        }
+                        echo esc_html($display_source);
+                        ?>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                                <label class="section-label mt-3">Visit Frequency</label>
-                                <div class="pill-group" id="visit-type-pills">
-                                    <button type="button" class="pill <?php echo ($visit_type === 'First visit') ? 'active' : ''; ?>" data-value="First visit">First Visit</button>
-                                    <button type="button" class="pill <?php echo ($visit_type === 'Revisit') ? 'active' : ''; ?>" data-value="Revisit">Revisit</button>
-                                    <button type="button" class="pill <?php echo ($visit_type === 'Multi visit') ? 'active' : ''; ?>" data-value="Multi visit">Multi Visit</button>
-                                </div>
-
-                                <label class="section-label mt-3">Visit Attended By</label>
-                                <div class="pill-group" id="visit-attended-pills">
-                                    <button type="button" class="pill <?php echo ($attended === 'Husband') ? 'active' : ''; ?>" data-value="Husband">Husband</button>
-                                    <button type="button" class="pill <?php echo ($attended === 'Wife') ? 'active' : ''; ?>" data-value="Wife">Wife</button>
-                                    <button type="button" class="pill <?php echo ($attended === 'Father') ? 'active' : ''; ?>" data-value="Father">Father</button>
-                                    <button type="button" class="pill <?php echo ($attended === 'Mother') ? 'active' : ''; ?>" data-value="Mother">Mother</button>
-                                    <button type="button" class="pill <?php echo ($attended === 'Brother') ? 'active' : ''; ?>" data-value="Brother">Brother</button>
-                                </div>
-
-                                <label class="section-label mt-3">Funding Mechanism</label>
-                                <div class="pill-group" id="funding-source-pills">
-                                    <button type="button" class="pill <?php echo ($funding === 'SOP') ? 'active' : ''; ?>" data-value="SOP">SOP</button>
-                                    <button type="button" class="pill <?php echo ($funding === 'Bank Loan') ? 'active' : ''; ?>" data-value="Bank Loan">Bank Loan</button>
-                                    <button type="button" class="pill <?php echo ($funding === 'Loan Funding') ? 'active' : ''; ?>" data-value="Loan Funding">Loan Funding</button>
-                                </div>
-
-                                <div class="form-grid mt-3">
-                                    <div class="input-group">
-                                        <label>SOP Amount</label>
-                                        <input type="text" name="sop_amount" id="form-sop-amount" placeholder="e.g. 10 Lakhs" value="<?php echo esc_attr($single_client->sop_amount); ?>">
-                                    </div>
-                                    <div class="input-group">
-                                        <label>Ready Down Payment</label>
-                                        <input type="text" name="ready_down_payment" id="form-ready-down" placeholder="e.g. 15 Lakhs" value="<?php echo esc_attr($single_client->ready_down_payment); ?>">
-                                    </div>
-                                    <div class="input-group full-width">
-                                        <label>Own Contribution</label>
-                                        <input type="text" name="own_contribution" id="form-own-contribution" placeholder="e.g. 20 Lakhs" value="<?php echo esc_attr($single_client->own_contribution); ?>">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-section card">
-                                <div class="section-header">
-                                    <div class="section-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                    </div>
-                                    <div class="section-title">
-                                        <h3>Property Preferences & Feedback</h3>
-                                        <p>Client choices and post-visit experience reviews.</p>
-                                    </div>
-                                </div>
-                                <div class="form-grid">
-                                    <div class="input-group">
-                                        <label>Unit Preference</label>
-                                        <input type="text" name="unit_like" id="form-unit-like" placeholder="e.g. 302" value="<?php echo esc_attr($single_client->unit_like); ?>">
-                                    </div>
-                                    <div class="input-group">
-                                        <label>Target Floor</label>
-                                        <input type="text" name="unit_floor" id="form-unit-floor" placeholder="e.g. 3rd Floor" value="<?php echo esc_attr($single_client->unit_floor); ?>">
-                                    </div>
-                                    <div class="input-group full-width">
-                                        <label>Target Budget</label>
-                                        <input type="text" name="unit_budget" id="form-unit-budget" placeholder="e.g. 85 Lakhs" value="<?php echo esc_attr($single_client->unit_budget); ?>">
-                                    </div>
-                                    <div class="input-group full-width">
-                                        <label>Feedback Details</label>
-                                        <textarea name="feedback_details" id="form-feedback-details" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->feedback_details); ?></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                                            <?php
-                            global $wpdb;
-                            $followups_table = $wpdb->prefix . 'crm_followups';
-                            $followup_history = $wpdb->get_results($wpdb->prepare(
-                                "SELECT * FROM $followups_table WHERE enquiry_id = %d ORDER BY created_at DESC",
-                                $single_client->id
-                            ));
-                            ?>
-                            <div class="form-section card">
-                                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
-                                    <div style="display: flex; align-items: center; gap: 12px;">
-                                        <div class="section-icon">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-                                        </div>
-                                        <div class="section-title">
-                                            <h3>Schedule Next Follow-Up</h3>
-                                            <p>Set a follow-up action plan with a sales representative.</p>
-                                        </div>
-                                    </div>
-                                    <button type="button" id="btn-add-action-plan" class="crm-btn crm-btn-secondary" style="font-size: 0.85rem; padding: 6px 14px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--crm-gold, #d4af37); color: var(--crm-gold-dark, #b5952f); background: #fffbeb; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='#fef3c7';" onmouseout="this.style.background='#fffbeb';">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        Add Action Details
-                                    </button>
-                                </div>
-
-                            
-
-                                <div class="form-grid">
-                                    <div class="input-group">
-                                        <label>Sales Manager (S.M)</label>
-                                        <input type="text" name="s_m" id="form-next-sm" placeholder="S.M Name" value="<?php echo esc_attr($single_client->s_m); ?>">
-                                    </div>
-                                    <div class="input-group">
-                                        <label>Action Date</label>
-                                        <input type="date" name="next_action_date" id="form-next-date" value="<?php echo esc_attr(($single_client->next_action_date && $single_client->next_action_date !== '0000-00-00') ? $single_client->next_action_date : ''); ?>">
-                                    </div>
-                                    <div class="input-group full-width">
-                                        <label>Action Plan Details</label>
-                                        <textarea name="next_action_remarks" id="form-next-remarks" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->next_action_remarks); ?></textarea>
-                                    </div>
-                                </div>
-                                    <?php if (!empty($followup_history)) : ?>
-                                    <div style="border: none; padding-top: 1.5rem; margin-top: 1.5rem; width: 100%;">
-                                        <label class="section-label" style="margin-bottom: 0.8rem; display: block; font-weight: 700; color: var(--crm-gold-dark, #b5952f);">Follow-Up History & Timeline</label>
-                                        <ul style="list-style-type: disc; padding-left: 1rem; margin: 0; color: #475569; font-size: 10px; line-height: 1.6;">
-                                            <?php foreach ($followup_history as $history) : ?>
-                                                <li style="margin-bottom: 8px;">
-                                                    <strong style="color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($history->action_date))); ?></strong> - <?php echo esc_html($history->remarks); ?>
-                                                </li>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+    <?php if ($is_saved): ?>
+        <!-- Accordion: Saved Assessment -->
+        <div class="crm-accordion">
+            <div class="crm-accordion-header" onclick="toggleAccordion(this)">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="section-icon" style="margin-right:0;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     </div>
+                    <div class="section-title" style="margin-bottom:0;">
+                        <h3 style="margin:0; font-size:1.1rem;">Saved Assessment</h3>
+                        <p style="margin:0; font-size:0.85rem; color:#64748b;">Manager evaluation and feedback.</p>
+                    </div>
+                </div>
+                <div class="crm-accordion-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+            </div>
+            <div class="crm-accordion-content">
+                <div class="crm-info-grid">
+                    <div class="crm-info-item">
+                        <label>Client Age</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->client_age) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Visit Attended By</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->visit_attended_by) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>SOP Amount</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->sop_amount) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Bank Loan Amount</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->ready_down_payment) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Own Contribution</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->own_contribution) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Unit Preference</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->unit_like) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Target Floor</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->unit_floor) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item">
+                        <label>Target Budget</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo esc_html($single_client->unit_budget) ?: '-'; ?></span>
+                    </div>
+                    <div class="crm-info-item" style="grid-column: 1 / -1;">
+                        <label>Feedback Details</label>
+                        <span style="font-weight: 500; color: #1e293b;"><?php echo nl2br(esc_html($single_client->feedback_details)) ?: '-'; ?></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php else: ?>
+        <!-- Not Saved: Editable Forms -->
+        <div class="form-section card">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <div class="section-title">
+                    <h3>Manager Evaluation</h3>
+                    <p>Fill out the customer rating and visit metadata.</p>
+                </div>
+            </div>
+            <div class="form-grid mt-3">
+                <div class="input-group full-width">
+                    <label>Client Age</label>
+                    <input type="text" name="client_age" id="form-client-age" placeholder="e.g. 35" value="<?php echo esc_attr($single_client->client_age); ?>">
+                </div>
+            </div>
+            <label class="section-label mt-3">Visit Attended By</label>
+            <div class="pill-group" id="visit-attended-pills">
+                <button type="button" class="pill <?php echo ($attended === 'Husband') ? 'active' : ''; ?>" data-value="Husband">Husband</button>
+                <button type="button" class="pill <?php echo ($attended === 'Wife') ? 'active' : ''; ?>" data-value="Wife">Wife</button>
+                <button type="button" class="pill <?php echo ($attended === 'Father') ? 'active' : ''; ?>" data-value="Father">Father</button>
+                <button type="button" class="pill <?php echo ($attended === 'Mother') ? 'active' : ''; ?>" data-value="Mother">Mother</button>
+                <button type="button" class="pill <?php echo ($attended === 'Brother') ? 'active' : ''; ?>" data-value="Brother">Brother</button>
+            </div>
+            <div class="form-grid mt-3">
+                <div class="input-group">
+                    <label>SOP Amount</label>
+                    <input type="text" name="sop_amount" id="form-sop-amount" placeholder="e.g. 10 Lakhs" value="<?php echo esc_attr($single_client->sop_amount); ?>">
+                </div>
+                <div class="input-group">
+                    <label>Bank Loan Amount</label>
+                    <input type="text" name="ready_down_payment" id="form-ready-down" placeholder="e.g. 15 Lakhs" value="<?php echo esc_attr($single_client->ready_down_payment); ?>">
+                </div>
+                <div class="input-group full-width">
+                    <label>Own Contribution</label>
+                    <input type="text" name="own_contribution" id="form-own-contribution" placeholder="e.g. 20 Lakhs" value="<?php echo esc_attr($single_client->own_contribution); ?>">
+                </div>
+            </div>
+        </div>
 
-                    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 2rem; padding: 1.5rem 0; border-top: 1px solid #e2e8f0;">
+        <div class="form-section card">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                </div>
+                <div class="section-title">
+                    <h3>Property Preferences & Feedback</h3>
+                    <p>Client choices and post-visit experience reviews.</p>
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>Unit Preference</label>
+                    <input type="text" name="unit_like" id="form-unit-like" placeholder="e.g. 302" value="<?php echo esc_attr($single_client->unit_like); ?>">
+                </div>
+                <div class="input-group">
+                    <label>Target Floor</label>
+                    <input type="text" name="unit_floor" id="form-unit-floor" placeholder="e.g. 3rd Floor" value="<?php echo esc_attr($single_client->unit_floor); ?>">
+                </div>
+                <div class="input-group full-width">
+                    <label>Target Budget</label>
+                    <input type="text" name="unit_budget" id="form-unit-budget" placeholder="e.g. 85 Lakhs" value="<?php echo esc_attr($single_client->unit_budget); ?>">
+                </div>
+                <div class="input-group full-width">
+                    <label>Feedback Details</label>
+                    <textarea name="feedback_details" id="form-feedback-details" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->feedback_details); ?></textarea>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+           <!-- 1. Schedule Next Follow-Up (Always on top) -->
+    <div class="form-section card" style="margin-bottom: 0;">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                </div>
+                <div class="section-title">
+                    <h3>Schedule Next Follow-Up</h3>
+                    <p>Set a follow-up action plan with a sales representative.</p>
+                </div>
+            </div>
+            <button type="button" id="btn-add-action-plan" class="crm-btn crm-btn-secondary" style="font-size: 0.85rem; padding: 6px 14px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--crm-gold, #d4af37); color: var(--crm-gold-dark, #b5952f); background: #fffbeb; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='#fef3c7';" onmouseout="this.style.background='#fffbeb';">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Add Action Details
+            </button>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+            <label class="section-label">Client Rating Status</label>
+            <div class="pill-group" id="rating-pills">
+                <button type="button" class="pill pill-hot <?php echo ($rating === 'Hot') ? 'active' : ''; ?>" data-value="Hot">Hot</button>
+                <button type="button" class="pill pill-warm <?php echo ($rating === 'Warm') ? 'active' : ''; ?>" data-value="Warm">Warm</button>
+                <button type="button" class="pill pill-cold <?php echo ($rating === 'Cold') ? 'active' : ''; ?>" data-value="Cold">Cold</button>
+                <button type="button" class="pill pill-booked <?php echo ($rating === 'Booked') ? 'active' : ''; ?>" data-value="Booked">Booked</button>
+                <button type="button" class="pill pill-lost <?php echo ($rating === 'Lost') ? 'active' : ''; ?>" data-value="Lost">Lost</button>
+            </div>
+
+            <label class="section-label mt-3">Visit Frequency</label>
+            <div class="pill-group" id="visit-type-pills">
+                <button type="button" class="pill <?php echo ($visit_type === 'First visit') ? 'active' : ''; ?>" data-value="First visit">First Visit</button>
+                <button type="button" class="pill <?php echo ($visit_type === 'Revisit') ? 'active' : ''; ?>" data-value="Revisit">Revisit</button>
+                <button type="button" class="pill <?php echo ($visit_type === 'Multi visit') ? 'active' : ''; ?>" data-value="Multi visit">Multi Visit</button>
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="input-group full-width">
+                <label>Action Date</label>
+                <input type="date" name="next_action_date" id="form-next-date" value="<?php echo esc_attr(($single_client->next_action_date && $single_client->next_action_date !== '0000-00-00') ? $single_client->next_action_date : ''); ?>">
+            </div>
+            <div class="input-group full-width">
+                <label>Action Plan Details</label>
+                <textarea name="next_action_remarks" id="form-next-remarks" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->next_action_remarks); ?></textarea>
+            </div>
+        </div>
+        <?php if (!empty($followup_history)) : ?>
+            <div style="border: none; padding-top: 1.5rem; margin-top: 1.5rem; width: 100%;">
+                <label class="section-label" style="margin-bottom: 0.8rem; display: block; font-weight: 700; color: var(--crm-gold-dark, #b5952f);">Follow-Up History & Timeline</label>
+                <ul style="list-style-type: disc; padding-left: 1rem; margin: 0; color: #475569; font-size: 10px; line-height: 1.6;">
+                    <?php foreach ($followup_history as $history) : ?>
+                        <li style="margin-bottom: 8px;">
+                            <strong style="color: #1e293b;"><?php echo esc_html(date('d M Y', strtotime($history->action_date))); ?></strong> - <?php echo esc_html($history->remarks); ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+    </div>
+<div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 2rem; padding: 1.5rem 0; border-top: 1px solid #e2e8f0;">
                         <a href="<?php echo esc_url(home_url('/closing-manager/')); ?>" class="crm-btn crm-btn-secondary" style="text-decoration: none; text-align: center; line-height: 20px;">Cancel</a>
                         <button type="submit" class="crm-btn crm-btn-primary" id="crm-btn-save">
                             <span id="btn-save-text">Save Assessments</span>
@@ -962,6 +1143,30 @@ get_header();
 
                 document.addEventListener('DOMContentLoaded', function() {
                     const form = document.getElementById('crm-annotations-form');
+
+                    // Accordion logic
+                    window.toggleAccordion = function(headerEl) {
+                        headerEl.classList.toggle('active');
+                        const contentEl = headerEl.nextElementSibling;
+                        if (contentEl) {
+                            contentEl.classList.toggle('active');
+                        }
+                    };
+
+                    // Responsive accordion start state
+                    function initAccordions() {
+                        const isMobile = window.innerWidth <= 768;
+                        const accordions = document.querySelectorAll('.crm-accordion-header');
+                        accordions.forEach(header => {
+                            if (!isMobile) {
+                                header.classList.add('active');
+                                if (header.nextElementSibling) {
+                                    header.nextElementSibling.classList.add('active');
+                                }
+                            }
+                        });
+                    }
+                    initAccordions();
 
                     // Toast alerts function
                     function showToast(msg, type) {
@@ -1001,7 +1206,6 @@ get_header();
                         setupPills('rating-pills', 'form-lead-status');
                         setupPills('visit-type-pills', 'form-visit-type');
                         setupPills('visit-attended-pills', 'form-visit-attended-by');
-                        setupPills('funding-source-pills', 'form-funding-source');
 
                         // Add Action Plan Details listener
                         const btnAddActionPlan = document.getElementById('btn-add-action-plan');
