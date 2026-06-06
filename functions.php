@@ -88,3 +88,82 @@ function crm_is_closing_manager($user = null) {
     if (!$user) $user = wp_get_current_user();
     return in_array('crm_closing_manager', (array) $user->roles);
 }
+
+// =========================================================================
+// PROJECT ASSIGNMENT FOR SITE MANAGERS
+// =========================================================================
+
+// Display the Assigned Projects fields in User Profile
+add_action('show_user_profile', 'crm_add_site_manager_project_fields');
+add_action('edit_user_profile', 'crm_add_site_manager_project_fields');
+
+function crm_add_site_manager_project_fields($user) {
+    // Only show if the user being edited is a site_manager
+    if (!in_array('site_manager', (array) $user->roles)) {
+        return;
+    }
+
+    // Only allow Admin or Site-Head Master to see/edit these assignments
+    $current_user = wp_get_current_user();
+    if (!current_user_can('manage_options') && !in_array('crm_site_head_master', (array) $current_user->roles)) {
+        return;
+    }
+
+    $projects = crm_get_projects();
+    $assigned_projects = get_user_meta($user->ID, 'crm_assigned_projects', true);
+    if (!is_array($assigned_projects)) {
+        $assigned_projects = array();
+    }
+    ?>
+    <h3>Project Assignment</h3>
+    <p>Select which projects this Site Manager is assigned to. (Only Site-Head Masters and Admins can modify this).</p>
+    <table class="form-table">
+        <tr>
+            <th><label>Assigned Projects</label></th>
+            <td>
+                <?php if (empty($projects)) : ?>
+                    <p>No projects available.</p>
+                <?php else : ?>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                        <?php foreach ($projects as $project) : ?>
+                            <label style="display: flex; align-items: center; gap: 5px; background: #f8fafc; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                                <input type="checkbox" name="crm_assigned_projects[]" value="<?php echo esc_attr($project['name']); ?>" <?php checked(in_array($project['name'], $assigned_projects)); ?>>
+                                <strong><?php echo esc_html($project['name']); ?></strong>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </td>
+        </tr>
+    </table>
+    <?php
+}
+
+// Save the Assigned Projects fields
+add_action('personal_options_update', 'crm_save_site_manager_project_fields');
+add_action('edit_user_profile_update', 'crm_save_site_manager_project_fields');
+
+function crm_save_site_manager_project_fields($user_id) {
+    // Check permissions
+    if (!current_user_can('edit_user', $user_id)) {
+        return false;
+    }
+    
+    $current_user = wp_get_current_user();
+    if (!current_user_can('manage_options') && !in_array('crm_site_head_master', (array) $current_user->roles)) {
+        return false;
+    }
+
+    $user_obj = get_userdata($user_id);
+    if (!in_array('site_manager', (array) $user_obj->roles)) {
+        return false;
+    }
+
+    if (isset($_POST['crm_assigned_projects']) && is_array($_POST['crm_assigned_projects'])) {
+        $assigned = array_map('sanitize_text_field', $_POST['crm_assigned_projects']);
+        update_user_meta($user_id, 'crm_assigned_projects', $assigned);
+    } else {
+        // If nothing is checked, clear it
+        update_user_meta($user_id, 'crm_assigned_projects', array());
+    }
+}

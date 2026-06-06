@@ -602,6 +602,26 @@ function crm_enquiries_page_html() {
         }
     }
 
+    $current_user = wp_get_current_user();
+    // Restrict Site Managers to only see their assigned projects
+    if (in_array('site_manager', (array)$current_user->roles) && !current_user_can('manage_options') && !in_array('crm_site_head_master', (array)$current_user->roles)) {
+        $assigned_projects = get_user_meta($current_user->ID, 'crm_assigned_projects', true);
+        if (!empty($assigned_projects) && is_array($assigned_projects)) {
+            $placeholders = implode(',', array_fill(0, count($assigned_projects), '%s'));
+            if (in_array('Pearl Grace', $assigned_projects)) {
+                $where_clauses[] = "(building_name IN ($placeholders) OR building_name = '')";
+            } else {
+                $where_clauses[] = "building_name IN ($placeholders)";
+            }
+            foreach ($assigned_projects as $proj) {
+                $prepare_args[] = $proj;
+            }
+        } else {
+            // If they have no assigned projects, hide all enquiries
+            $where_clauses[] = "1 = 0";
+        }
+    }
+
     $where = '';
     if (!empty($where_clauses)) {
         $where = " WHERE " . implode(' AND ', $where_clauses);
@@ -656,9 +676,27 @@ function crm_enquiries_page_html() {
     echo '<select id="building_name_filter" name="building_name" style="padding: 3px 8px; height: 28px; width: 120px">';
     echo '<option value="">All Projects</option>';
     $all_projects = crm_get_projects();
+    
+    // Filter projects for Site Manager
+    $allowed_projects = array();
+    $current_user = wp_get_current_user();
+    if (in_array('site_manager', (array)$current_user->roles) && !current_user_can('manage_options') && !in_array('crm_site_head_master', (array)$current_user->roles)) {
+        $assigned = get_user_meta($current_user->ID, 'crm_assigned_projects', true);
+        if (is_array($assigned)) {
+            $allowed_projects = $assigned;
+        }
+    } else {
+        // Admin or Site-Head Master sees all
+        foreach ($all_projects as $p) {
+            $allowed_projects[] = $p['name'];
+        }
+    }
+
     foreach ($all_projects as $proj) {
         $p_name = esc_attr($proj['name']);
-        echo '<option value="' . $p_name . '"' . selected($project_filter, $p_name, false) . '>' . esc_html($p_name) . '</option>';
+        if (in_array($p_name, $allowed_projects) || (in_array('Pearl Grace', $allowed_projects) && $p_name === 'Pearl Grace')) {
+            echo '<option value="' . $p_name . '"' . selected($project_filter, $p_name, false) . '>' . esc_html($p_name) . '</option>';
+        }
     }
     echo '</select>';
     echo '</div>';
