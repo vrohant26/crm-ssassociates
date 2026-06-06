@@ -1140,10 +1140,7 @@ function crm_enquiries_page_html() {
                         <td class="label-cell">Client Age</td>
                         <td class="value-cell" id="feedback-client-age"></td>
                     </tr>
-                    <tr>
-                        <td class="label-cell">Funding Source</td>
-                        <td class="value-cell" id="feedback-funding-source"></td>
-                    </tr>
+
                     <tr>
                         <td class="label-cell">SOP Amount</td>
                         <td class="value-cell" id="feedback-sop-amount"></td>
@@ -1167,10 +1164,7 @@ function crm_enquiries_page_html() {
                         <td class="label-cell">Action Date</td>
                         <td class="value-cell" id="feedback-next-date" style="font-weight: 600; color: #1e293b;"></td>
                     </tr>
-                    <tr>
-                        <td class="label-cell">Action Owner (S.M)</td>
-                        <td class="value-cell" id="feedback-next-sm"></td>
-                    </tr>
+
                     <tr>
                         <td class="label-cell">Action Plan Remarks</td>
                         <td class="value-cell" id="feedback-next-remarks" style="line-height: 1.5; color: #475569;"></td>
@@ -1238,8 +1232,8 @@ function crm_enquiries_page_html() {
                     document.getElementById('feedback-visit-type').textContent = data.visit_type || '-';
                     document.getElementById('feedback-visit-attended').textContent = data.visit_attended_by || '-';
                     document.getElementById('feedback-sourcing-manager').textContent = data.sourcing_manager || '-';
+                    document.getElementById('feedback-pre-sales').textContent = data.pre_sales || '-';
                     document.getElementById('feedback-client-age').textContent = data.client_age || '-';
-                    document.getElementById('feedback-funding-source').textContent = data.funding_source || '-';
                     document.getElementById('feedback-sop-amount').textContent = data.sop_amount || '-';
                     document.getElementById('feedback-ready-down').textContent = data.ready_down_payment || '-';
                     document.getElementById('feedback-own-contribution').textContent = data.own_contribution || '-';
@@ -1258,7 +1252,6 @@ function crm_enquiries_page_html() {
                         }
                     }
                     document.getElementById('feedback-next-date').textContent = nextDateDisplay;
-                    document.getElementById('feedback-next-sm').textContent = data.s_m || '-';
                     document.getElementById('feedback-next-remarks').textContent = data.next_action_remarks || 'No action plan remarks.';
                     
                     // Fetch follow-up history for Site Manager drawer
@@ -1967,14 +1960,7 @@ function crm_closing_manager_page_html() {
                                 </div>
                             </div>
 
-                            <div class="crm-form-full" style="margin-top: 6px;">
-                                <label>Funding Options</label>
-                                <div class="crm-pill-selector" id="funding-source-pills">
-                                    <span class="crm-pill-opt" data-value="SOP">SOP</span>
-                                    <span class="crm-pill-opt" data-value="Bank Loan">Bank Loan</span>
-                                    <span class="crm-pill-opt" data-value="Loan Funding">Loan Funding</span>
-                                </div>
-                            </div>
+
 
                             <div class="crm-form-group">
                                 <label for="form-sop-amount">SOP Amount</label>
@@ -2021,10 +2007,7 @@ function crm_closing_manager_page_html() {
                             </button>
                         </div>
                         <div class="crm-form-grid" style="margin-bottom: 15px;">
-                            <div class="crm-form-group">
-                                <label for="form-next-sm">Action Owner (S.M)</label>
-                                <input type="text" name="s_m" id="form-next-sm" placeholder="Manager Name">
-                            </div>
+
                             <div class="crm-form-group">
                                 <label for="form-next-date">Next Action Date</label>
                                 <input type="date" name="next_action_date" id="form-next-date">
@@ -2131,7 +2114,6 @@ function crm_closing_manager_page_html() {
                     document.getElementById('form-unit-budget').value = client.unit_budget || '';
                     document.getElementById('form-feedback-by').value = client.feedback_by || '';
                     document.getElementById('form-feedback-details').value = client.feedback_details || '';
-                    document.getElementById('form-next-sm').value = client.s_m || '';
                     document.getElementById('form-next-date').value = (client.next_action_date && client.next_action_date !== '0000-00-00') ? client.next_action_date : '';
                     document.getElementById('form-next-remarks').value = client.next_action_remarks || '';
 
@@ -2139,13 +2121,11 @@ function crm_closing_manager_page_html() {
                     document.getElementById('form-lead-status').value = client.lead_status || '';
                     document.getElementById('form-visit-type').value = client.visit_type || '';
                     document.getElementById('form-visit-attended-by').value = client.visit_attended_by || '';
-                    document.getElementById('form-funding-source').value = client.funding_source || '';
 
                     // Trigger active pills
                     setPillActiveState('rating-pills', client.lead_status);
                     setPillActiveState('visit-type-pills', client.visit_type);
                     setPillActiveState('visit-attended-pills', client.visit_attended_by);
-                    setPillActiveState('funding-source-pills', client.funding_source);
 
                     // Fetch follow-up history for Closing Manager drawer
                     const timelineContainer = document.getElementById('drawer-followup-timeline-container');
@@ -2310,7 +2290,6 @@ function crm_closing_manager_page_html() {
                                 currentClient.unit_budget = document.getElementById('form-unit-budget').value;
                                 currentClient.feedback_by = document.getElementById('form-feedback-by').value;
                                 currentClient.feedback_details = document.getElementById('form-feedback-details').value;
-                                currentClient.s_m = document.getElementById('form-next-sm').value;
                                 currentClient.next_action_date = nextDate;
                                 currentClient.next_action_remarks = nextRemarks;
 
@@ -2361,7 +2340,7 @@ function crm_handle_save_closing_manager_sheet() {
     }
 
     // Detect if follow-up changed, and archive previous one
-    $s_m_new = sanitize_text_field($_POST['s_m']);
+    $s_m_new = isset($_POST['s_m']) ? sanitize_text_field($_POST['s_m']) : '';
     $date_new = !empty($_POST['next_action_date']) ? sanitize_text_field($_POST['next_action_date']) : '0000-00-00';
     $remarks_new = sanitize_textarea_field($_POST['next_action_remarks']);
 
@@ -2386,7 +2365,7 @@ function crm_handle_save_closing_manager_sheet() {
     $data = array(
         'lead_status' => sanitize_text_field($_POST['lead_status']),
         'visit_type' => sanitize_text_field($_POST['visit_type']),
-        's_m' => sanitize_text_field($_POST['s_m']),
+        's_m' => isset($_POST['s_m']) ? sanitize_text_field($_POST['s_m']) : '',
         'next_action_date' => !empty($_POST['next_action_date']) ? sanitize_text_field($_POST['next_action_date']) : '0000-00-00',
         'next_action_remarks' => sanitize_textarea_field($_POST['next_action_remarks']),
     );
@@ -2394,18 +2373,43 @@ function crm_handle_save_closing_manager_sheet() {
     $can_override = current_user_can('manage_options') || in_array('crm_site_head', (array) $user->roles) || in_array('crm_site_head_master', (array) $user->roles);
 
     if (empty($enquiry->assessment_saved) || $can_override) {
-        $data['sourcing_manager'] = sanitize_text_field($_POST['sourcing_manager']);
-        $data['client_age'] = sanitize_text_field($_POST['client_age']);
-        $data['visit_attended_by'] = sanitize_text_field($_POST['visit_attended_by']);
-        $data['funding_source'] = sanitize_text_field($_POST['funding_source']);
-        $data['sop_amount'] = sanitize_text_field($_POST['sop_amount']);
-        $data['ready_down_payment'] = sanitize_text_field($_POST['ready_down_payment']);
-        $data['own_contribution'] = sanitize_text_field($_POST['own_contribution']);
-        $data['unit_like'] = sanitize_text_field($_POST['unit_like']);
-        $data['unit_floor'] = sanitize_text_field($_POST['unit_floor']);
-        $data['unit_budget'] = sanitize_text_field($_POST['unit_budget']);
+        if (isset($_POST['sourcing_manager'])) {
+            $data['sourcing_manager'] = sanitize_text_field($_POST['sourcing_manager']);
+        }
+        if (isset($_POST['pre_sales'])) {
+            $data['pre_sales'] = sanitize_text_field($_POST['pre_sales']);
+        }
+        if (isset($_POST['client_age'])) {
+            $data['client_age'] = sanitize_text_field($_POST['client_age']);
+        }
+        if (isset($_POST['visit_attended_by'])) {
+            $data['visit_attended_by'] = sanitize_text_field($_POST['visit_attended_by']);
+        }
+        if (isset($_POST['funding_source'])) {
+            $data['funding_source'] = sanitize_text_field($_POST['funding_source']);
+        }
+        if (isset($_POST['sop_amount'])) {
+            $data['sop_amount'] = sanitize_text_field($_POST['sop_amount']);
+        }
+        if (isset($_POST['ready_down_payment'])) {
+            $data['ready_down_payment'] = sanitize_text_field($_POST['ready_down_payment']);
+        }
+        if (isset($_POST['own_contribution'])) {
+            $data['own_contribution'] = sanitize_text_field($_POST['own_contribution']);
+        }
+        if (isset($_POST['unit_like'])) {
+            $data['unit_like'] = sanitize_text_field($_POST['unit_like']);
+        }
+        if (isset($_POST['unit_floor'])) {
+            $data['unit_floor'] = sanitize_text_field($_POST['unit_floor']);
+        }
+        if (isset($_POST['unit_budget'])) {
+            $data['unit_budget'] = sanitize_text_field($_POST['unit_budget']);
+        }
         $data['feedback_by'] = $user->display_name;
-        $data['feedback_details'] = sanitize_textarea_field($_POST['feedback_details']);
+        if (isset($_POST['feedback_details'])) {
+            $data['feedback_details'] = sanitize_textarea_field($_POST['feedback_details']);
+        }
         $data['assessment_saved'] = 1;
     }
 
