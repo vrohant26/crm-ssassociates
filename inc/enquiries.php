@@ -114,6 +114,20 @@ function crm_setup_client_role() {
         )
     );
 
+    add_role(
+        'crm_site_head_master',
+        'Site-Head Master',
+        array(
+            'read' => true,
+            'view_crm_enquiries' => true,
+            'create_users' => true,
+            'edit_users' => true,
+            'list_users' => true,
+            'promote_users' => true,
+            'delete_users' => true
+        )
+    );
+
     // Explicitly add capabilities in case the role was already created
     $site_manager_role = get_role('site_manager');
     if ($site_manager_role) {
