@@ -22,6 +22,7 @@ function crm_create_enquiries_table() {
         budget varchar(100) NOT NULL,
         source varchar(100) NOT NULL,
         reference_name varchar(255) NOT NULL,
+        cp_firm_name varchar(255) DEFAULT '' NOT NULL,
         cp_name varchar(255) NOT NULL,
         cp_contact varchar(50) NOT NULL,
         signature text NOT NULL,
@@ -80,6 +81,15 @@ function crm_create_enquiries_table() {
     ));
     if (empty($column_presales)) {
         $wpdb->query("ALTER TABLE $table_name ADD pre_sales varchar(255) DEFAULT '' NOT NULL AFTER sourcing_manager");
+    }
+
+    // Safety check for cp_firm_name
+    $column_cpf = $wpdb->get_results($wpdb->prepare(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+        DB_NAME, $table_name, 'cp_firm_name'
+    ));
+    if (empty($column_cpf)) {
+        $wpdb->query("ALTER TABLE $table_name ADD cp_firm_name varchar(255) DEFAULT '' NOT NULL AFTER reference_name");
     }
     
     add_option('crm_db_version', '1.0');
@@ -264,6 +274,7 @@ function crm_handle_enquiry_submission() {
         'budget' => sanitize_text_field($_POST['budget']),
         'source' => sanitize_text_field($_POST['source']),
         'reference_name' => isset($_POST['reference_name']) ? sanitize_text_field($_POST['reference_name']) : '',
+        'cp_firm_name' => isset($_POST['cp_firm_name']) ? sanitize_text_field($_POST['cp_firm_name']) : '',
         'cp_name' => sanitize_text_field($_POST['cp_name']),
         'cp_contact' => sanitize_text_field($_POST['cp_contact']),
         'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
@@ -401,7 +412,7 @@ function crm_export_enquiries_csv() {
             $headers = array(
                 'ID', 'Created At', 'Date Visit', 'Project', 'Name', 'Contact', 'Email', 
                 'Residence', 'Occupation', 'Company Name', 'Company Location', 
-                'Configuration', 'Budget', 'Source', 'Reference Name', 
+                'Configuration', 'Budget', 'Source', 'Reference Name', 'CP Firm Name',
                 'Channel Partner Name', 'Channel Partner Contact', 'Closing Manager',
                 'Status Rating', 'Sourcing Manager', 'Pre-sales', 'Client Age', 'Visit Frequency',
                 'Visit Attended By', 'Funding Option', 'SOP Amount', 'Ready Down Payment',
@@ -440,6 +451,7 @@ function crm_export_enquiries_csv() {
                     $row['budget'],
                     $row['source'],
                     $row['reference_name'],
+                    $row['cp_firm_name'],
                     $row['cp_name'],
                     $row['cp_contact'],
                     $manager_name,
@@ -528,6 +540,7 @@ function crm_handle_enquiries_crud() {
                 'budget' => sanitize_text_field($_POST['budget']),
                 'source' => sanitize_text_field($_POST['source']),
                 'reference_name' => isset($_POST['reference_name']) ? sanitize_text_field($_POST['reference_name']) : '',
+                'cp_firm_name' => isset($_POST['cp_firm_name']) ? sanitize_text_field($_POST['cp_firm_name']) : '',
                 'cp_name' => sanitize_text_field($_POST['cp_name']),
                 'cp_contact' => sanitize_text_field($_POST['cp_contact']),
                 'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
@@ -600,6 +613,7 @@ function crm_enquiries_page_html() {
             echo '<tr><th scope="row"><label for="budget">Budget</label></th><td><input name="budget" type="text" id="budget" value="' . esc_attr($enquiry->budget) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="source">Source</label></th><td><input name="source" type="text" id="source" value="' . esc_attr($enquiry->source) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="reference_name">Reference Name</label></th><td><input name="reference_name" type="text" id="reference_name" value="' . esc_attr($enquiry->reference_name) . '" class="regular-text"></td></tr>';
+            echo '<tr><th scope="row"><label for="cp_firm_name">Channel Partner Firm Name</label></th><td><input name="cp_firm_name" type="text" id="cp_firm_name" value="' . esc_attr($enquiry->cp_firm_name) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="cp_name">Channel Partner Name</label></th><td><input name="cp_name" type="text" id="cp_name" value="' . esc_attr($enquiry->cp_name) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="cp_contact">Channel Partner Contact</label></th><td><input name="cp_contact" type="text" id="cp_contact" value="' . esc_attr($enquiry->cp_contact) . '" class="regular-text"></td></tr>';
             echo '</table>';
@@ -927,8 +941,17 @@ function crm_enquiries_page_html() {
             $source_display = esc_html($row->source);
             if ($row->source === 'Reference' && !empty($row->reference_name)) {
                 $source_display .= '<br><small>(' . esc_html($row->reference_name) . ')</small>';
-            } elseif ($row->source === 'Channel Partner' && !empty($row->cp_name)) {
-                $source_display .= '<br><small>(' . esc_html($row->cp_name) . ')</small>';
+            } elseif ($row->source === 'Channel Partner') {
+                $cp_details = array();
+                if (!empty($row->cp_firm_name)) {
+                    $cp_details[] = esc_html($row->cp_firm_name);
+                }
+                if (!empty($row->cp_name)) {
+                    $cp_details[] = esc_html($row->cp_name);
+                }
+                if (!empty($cp_details)) {
+                    $source_display .= '<br><small>(' . implode(', ', $cp_details) . ')</small>';
+                }
             }
             echo '<td>' . $source_display . '</td>';
 
