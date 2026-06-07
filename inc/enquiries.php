@@ -616,15 +616,40 @@ function crm_enquiries_page_html() {
     $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
     $project_filter = isset($_GET['building_name']) ? sanitize_text_field($_GET['building_name']) : '';
     $cm_filter = isset($_GET['cm_id']) ? intval($_GET['cm_id']) : 0;
+    $status_filter = isset($_GET['lead_status']) ? sanitize_text_field($_GET['lead_status']) : '';
     
     $where_clauses = array();
     $prepare_args = array();
 
     if (!empty($search)) {
-        $where_clauses[] = "(name LIKE %s OR email LIKE %s OR contact LIKE %s)";
-        $prepare_args[] = '%' . $search . '%';
-        $prepare_args[] = '%' . $search . '%';
-        $prepare_args[] = '%' . $search . '%';
+        $matching_users = get_users(array(
+            'search' => "*{$search}*",
+            'search_columns' => array('user_login', 'user_nicename', 'user_email', 'user_url', 'display_name'),
+            'fields' => 'ID'
+        ));
+
+        $search_term = '%' . $wpdb->esc_like($search) . '%';
+        $search_clauses = array(
+            "name LIKE %s",
+            "email LIKE %s",
+            "contact LIKE %s",
+            "lead_status LIKE %s",
+            "sourcing_manager LIKE %s",
+            "pre_sales LIKE %s",
+            "s_m LIKE %s",
+            "feedback_details LIKE %s",
+            "next_action_remarks LIKE %s"
+        );
+        for ($i = 0; $i < 9; $i++) {
+            $prepare_args[] = $search_term;
+        }
+
+        if (!empty($matching_users)) {
+            $user_ids = implode(',', array_map('intval', $matching_users));
+            $search_clauses[] = "closing_manager_id IN ($user_ids)";
+        }
+        
+        $where_clauses[] = "(" . implode(' OR ', $search_clauses) . ")";
     }
 
     if (!empty($date_from)) {
@@ -649,6 +674,15 @@ function crm_enquiries_page_html() {
     if ($cm_filter > 0) {
         $where_clauses[] = "closing_manager_id = %d";
         $prepare_args[] = $cm_filter;
+    }
+
+    if (!empty($status_filter)) {
+        if ($status_filter === 'Not Rated') {
+            $where_clauses[] = "(lead_status = '' OR lead_status IS NULL)";
+        } else {
+            $where_clauses[] = "lead_status = %s";
+            $prepare_args[] = $status_filter;
+        }
     }
 
     $current_user = wp_get_current_user();
@@ -688,7 +722,8 @@ function crm_enquiries_page_html() {
         'date_from' => $date_from,
         'date_to' => $date_to,
         'building_name' => $project_filter,
-        'cm_id' => $cm_filter
+        'cm_id' => $cm_filter,
+        'lead_status' => $status_filter
     ), admin_url('admin.php'));
 
     echo '<div class="wrap">';
@@ -772,6 +807,17 @@ function crm_enquiries_page_html() {
     echo '</div>';
     
     echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="status_filter">Lead Status:</label>';
+    echo '<select id="status_filter" name="lead_status" style="padding: 3px 8px; height: 28px; width: 120px">';
+    echo '<option value="">All Statuses</option>';
+    $statuses = array('Hot', 'Warm', 'Cold', 'Lost', 'Booked', 'Not Rated');
+    foreach ($statuses as $st) {
+        echo '<option value="' . esc_attr($st) . '"' . selected($status_filter, $st, false) . '>' . esc_html($st) . '</option>';
+    }
+    echo '</select>';
+    echo '</div>';
+    
+    echo '<div>';
     echo '<label style="display:block; margin-bottom:5px;" for="date_from">From Date:</label>';
     echo '<input type="date" id="date_from" name="date_from" value="' . esc_attr($date_from) . '">';
     echo '</div>';
@@ -783,7 +829,7 @@ function crm_enquiries_page_html() {
 
     echo '<div>';
     echo '<input type="submit" id="search-submit" class="button button-primary" value="Filter">';
-    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter) || $cm_filter > 0) {
+    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter) || $cm_filter > 0 || !empty($status_filter)) {
         echo ' <a href="?page=crm-enquiries" class="button">Clear</a>';
     }
     echo '</div>';
