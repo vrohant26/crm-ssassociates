@@ -615,6 +615,7 @@ function crm_enquiries_page_html() {
     $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
     $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
     $project_filter = isset($_GET['building_name']) ? sanitize_text_field($_GET['building_name']) : '';
+    $cm_filter = isset($_GET['cm_id']) ? intval($_GET['cm_id']) : 0;
     
     $where_clauses = array();
     $prepare_args = array();
@@ -643,6 +644,11 @@ function crm_enquiries_page_html() {
             $where_clauses[] = "building_name = %s";
             $prepare_args[] = $project_filter;
         }
+    }
+
+    if ($cm_filter > 0) {
+        $where_clauses[] = "closing_manager_id = %d";
+        $prepare_args[] = $cm_filter;
     }
 
     $current_user = wp_get_current_user();
@@ -681,7 +687,8 @@ function crm_enquiries_page_html() {
         's' => $search,
         'date_from' => $date_from,
         'date_to' => $date_to,
-        'building_name' => $project_filter
+        'building_name' => $project_filter,
+        'cm_id' => $cm_filter
     ), admin_url('admin.php'));
 
     echo '<div class="wrap">';
@@ -748,6 +755,23 @@ function crm_enquiries_page_html() {
     echo '</div>';
     
     echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="cm_id_filter">Closing Manager:</label>';
+    echo '<select id="cm_id_filter" name="cm_id" style="padding: 3px 8px; height: 28px; width:130px">';
+    echo '<option value="0">All Managers</option>';
+    $closing_managers_filter = get_users(array(
+        'role' => 'crm_closing_manager',
+        'orderby' => 'display_name',
+        'order' => 'ASC'
+    ));
+    if (!empty($closing_managers_filter)) {
+        foreach ($closing_managers_filter as $manager) {
+            echo '<option value="' . esc_attr($manager->ID) . '"' . selected($cm_filter, $manager->ID, false) . '>' . esc_html($manager->display_name) . '</option>';
+        }
+    }
+    echo '</select>';
+    echo '</div>';
+    
+    echo '<div>';
     echo '<label style="display:block; margin-bottom:5px;" for="date_from">From Date:</label>';
     echo '<input type="date" id="date_from" name="date_from" value="' . esc_attr($date_from) . '">';
     echo '</div>';
@@ -759,7 +783,7 @@ function crm_enquiries_page_html() {
 
     echo '<div>';
     echo '<input type="submit" id="search-submit" class="button button-primary" value="Filter">';
-    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter)) {
+    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter) || $cm_filter > 0) {
         echo ' <a href="?page=crm-enquiries" class="button">Clear</a>';
     }
     echo '</div>';
