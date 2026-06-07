@@ -492,6 +492,18 @@ function crm_handle_enquiries_crud() {
             exit;
         }
 
+        if (isset($_POST['bulk_action']) && $_POST['bulk_action'] === 'assign_cm' && isset($_POST['enquiry_ids']) && is_array($_POST['enquiry_ids'])) {
+            check_admin_referer('bulk_actions_enquiries');
+            $cm_id = isset($_POST['bulk_assign_cm_id']) ? intval($_POST['bulk_assign_cm_id']) : 0;
+            if ($cm_id > 0) {
+                foreach ($_POST['enquiry_ids'] as $id) {
+                    $wpdb->update($table_name, array('closing_manager_id' => $cm_id), array('id' => intval($id)));
+                }
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_assigned=' . count($_POST['enquiry_ids'])));
+                exit;
+            }
+        }
+
         if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
             check_admin_referer('delete_enquiry_' . $_GET['id']);
             $wpdb->delete($table_name, array('id' => intval($_GET['id'])));
@@ -693,6 +705,9 @@ function crm_enquiries_page_html() {
     if (isset($_GET['bulk_deleted'])) {
         echo '<div class="notice notice-success is-dismissible"><p>' . intval($_GET['bulk_deleted']) . ' enquiries deleted.</p></div>';
     }
+    if (isset($_GET['bulk_assigned'])) {
+        echo '<div class="notice notice-success is-dismissible"><p>Successfully assigned ' . intval($_GET['bulk_assigned']) . ' enquiries to the selected Closing Manager.</p></div>';
+    }
 
     echo '<form method="get" style="margin-top: 1rem; display:flex; gap:15px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap;">';
     echo '<input type="hidden" name="page" value="crm-enquiries">';
@@ -756,11 +771,27 @@ function crm_enquiries_page_html() {
     
     echo '<div class="tablenav top" style="margin-bottom: 10px;">';
     echo '<div class="alignleft actions bulkactions">';
-    echo '<select name="bulk_action">';
+    echo '<select name="bulk_action" id="bulk-action-selector" onchange="document.getElementById(\'bulk_assign_cm_id\').style.display = (this.value === \'assign_cm\') ? \'inline-block\' : \'none\';">';
     echo '<option value="-1">Bulk actions</option>';
+    echo '<option value="assign_cm">Assign Closing Manager</option>';
     echo '<option value="delete">Delete</option>';
     echo '</select>';
-    echo '<input type="submit" id="doaction" class="button action" value="Apply" onclick="var action = document.querySelector(\'select[name=bulk_action]\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
+    
+    $closing_managers = get_users(array(
+        'role' => 'crm_closing_manager',
+        'orderby' => 'display_name',
+        'order' => 'ASC'
+    ));
+    echo '<select name="bulk_assign_cm_id" id="bulk_assign_cm_id" style="display:none; margin-left: 5px;">';
+    echo '<option value="">Select Manager...</option>';
+    if (!empty($closing_managers)) {
+        foreach ($closing_managers as $manager) {
+            echo '<option value="' . esc_attr($manager->ID) . '">' . esc_html($manager->display_name) . '</option>';
+        }
+    }
+    echo '</select>';
+
+    echo '<input type="submit" id="doaction" class="button action" style="margin-left: 5px;" value="Apply" onclick="var action = document.querySelector(\'#bulk-action-selector\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'assign_cm\') { if(!document.getElementById(\'bulk_assign_cm_id\').value) { alert(\'Please select a Closing Manager to assign.\'); return false; } } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
     echo '</div>';
     
     $total_items = is_array($results) ? count($results) : 0;
