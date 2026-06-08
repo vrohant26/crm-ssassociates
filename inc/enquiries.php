@@ -508,10 +508,32 @@ function crm_handle_enquiries_crud() {
             check_admin_referer('bulk_actions_enquiries');
             $cm_id = isset($_POST['bulk_assign_cm_id']) ? intval($_POST['bulk_assign_cm_id']) : 0;
             if ($cm_id > 0) {
+                $updated_count = 0;
                 foreach ($_POST['enquiry_ids'] as $id) {
-                    $wpdb->update($table_name, array('closing_manager_id' => $cm_id), array('id' => intval($id)));
+                    $res = $wpdb->update($table_name, array('closing_manager_id' => $cm_id), array('id' => intval($id)));
+                    if ($res !== false) $updated_count++;
                 }
-                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_assigned=' . count($_POST['enquiry_ids'])));
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_assigned=' . $updated_count));
+                exit;
+            } else {
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_error=cm_id_zero'));
+                exit;
+            }
+        }
+
+        if (isset($_POST['bulk_action']) && $_POST['bulk_action'] === 'assign_project' && isset($_POST['enquiry_ids']) && is_array($_POST['enquiry_ids'])) {
+            check_admin_referer('bulk_actions_enquiries');
+            $project_name = isset($_POST['bulk_assign_project']) ? sanitize_text_field($_POST['bulk_assign_project']) : '';
+            if (!empty($project_name)) {
+                $updated_count = 0;
+                foreach ($_POST['enquiry_ids'] as $id) {
+                    $res = $wpdb->update($table_name, array('building_name' => $project_name), array('id' => intval($id)));
+                    if ($res !== false) $updated_count++;
+                }
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_assigned_project=' . $updated_count));
+                exit;
+            } else {
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&bulk_error=project_empty'));
                 exit;
             }
         }
@@ -551,6 +573,132 @@ function crm_handle_enquiries_crud() {
             $wpdb->update($table_name, $data, array('id' => intval($_POST['id'])));
             wp_redirect(admin_url('admin.php?page=crm-enquiries&updated=1'));
             exit;
+        }
+
+        if (isset($_POST['action']) && $_POST['action'] === 'import_csv' && isset($_FILES['import_file'])) {
+            check_admin_referer('import_csv_enquiries');
+            $file = $_FILES['import_file']['tmp_name'];
+            if (!empty($file)) {
+                ini_set('auto_detect_line_endings', TRUE);
+                $handle = fopen($file, "r");
+                if ($handle !== FALSE) {
+                    $headers = fgetcsv($handle, 1000, ",");
+                    if ($headers) {
+                        // Clean BOM from first header just in case
+                        $headers[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $headers[0]);
+                        $headers = array_map('trim', $headers);
+                        
+                        $imported = 0;
+                        $skipped = 0;
+                        $duplicates = array();
+                        $debug_log = array('headers' => $headers, 'first_row' => null, 'reasons' => array());
+                        
+                        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                            // Pad or slice data to exactly match headers length
+                            if (count($headers) > count($data)) {
+                                $data = array_pad($data, count($headers), '');
+                            } elseif (count($headers) < count($data)) {
+                                $data = array_slice($data, 0, count($headers));
+                            }
+                            
+                            $row = array_combine($headers, $data);
+                            if (!$row) {
+                                $debug_log['reasons'][] = 'row_combine_failed';
+                                continue;
+                            }
+                            
+                            if ($debug_log['first_row'] === null) {
+                                $debug_log['first_row'] = $row;
+                            }
+                            
+                            // Try case-insensitive matching for headers just in case
+                            $row_lower = array_change_key_case($row, CASE_LOWER);
+                            $name = isset($row_lower['name']) ? sanitize_text_field($row_lower['name']) : '';
+                            $contact = isset($row_lower['contact']) ? sanitize_text_field($row_lower['contact']) : '';
+                            
+                            if (empty($name) && empty($contact)) {
+                                $debug_log['reasons'][] = 'empty_name_and_contact';
+                                continue;
+                            }
+                            
+                            // Check for duplicates
+                            $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE name = %s AND contact = %s", $name, $contact));
+                            if ($existing) {
+                                $skipped++;
+                                $duplicates[] = $name . ' (' . $contact . ')';
+                                continue;
+                            }
+                            
+                            // Robust date parsing
+                            $date_visit_raw = isset($row_lower['date visit']) ? $row_lower['date visit'] : (isset($row_lower['date_visit']) ? $row_lower['date_visit'] : (isset($row_lower['date']) ? $row_lower['date'] : ''));
+                            $date_visit = '';
+                            if (!empty($date_visit_raw)) {
+                                // The dates in the CSV are m/d/y (e.g. 2/15/26).
+                                // PHP strtotime parses m/d/y perfectly when slashes are used.
+                                $parsed_date = strtotime($date_visit_raw);
+                                if ($parsed_date !== false) {
+                                    $date_visit = date('Y-m-d', $parsed_date);
+                                } else {
+                                    $date_visit = sanitize_text_field($date_visit_raw);
+                                }
+                            }
+                            
+                            // Insert mapping with multiple fallback headers
+                            $insert_data = array(
+                                'building_name' => isset($row_lower['project']) ? sanitize_text_field($row_lower['project']) : (isset($row_lower['building_name']) ? sanitize_text_field($row_lower['building_name']) : ''),
+                                'date_visit' => $date_visit,
+                                'name' => $name,
+                                'contact' => $contact,
+                                'email' => isset($row_lower['email']) ? sanitize_email($row_lower['email']) : '',
+                                'residence' => isset($row_lower['residence']) ? sanitize_text_field($row_lower['residence']) : '',
+                                'occupation' => isset($row_lower['occupation']) ? sanitize_text_field($row_lower['occupation']) : '',
+                                'company_name' => isset($row_lower['company name']) ? sanitize_text_field($row_lower['company name']) : (isset($row_lower['company_name']) ? sanitize_text_field($row_lower['company_name']) : ''),
+                                'company_location' => isset($row_lower['company location']) ? sanitize_text_field($row_lower['company location']) : (isset($row_lower['company_location']) ? sanitize_text_field($row_lower['company_location']) : ''),
+                                'configuration' => isset($row_lower['configuration']) ? sanitize_text_field($row_lower['configuration']) : (isset($row_lower['config']) ? sanitize_text_field($row_lower['config']) : ''),
+                                'budget' => isset($row_lower['budget']) ? sanitize_text_field($row_lower['budget']) : '',
+                                'source' => isset($row_lower['source']) ? sanitize_text_field($row_lower['source']) : '',
+                                'reference_name' => isset($row_lower['reference name']) ? sanitize_text_field($row_lower['reference name']) : (isset($row_lower['reference_name']) ? sanitize_text_field($row_lower['reference_name']) : ''),
+                                'cp_firm_name' => isset($row_lower['cp firm name']) ? sanitize_text_field($row_lower['cp firm name']) : (isset($row_lower['cp_firm_name']) ? sanitize_text_field($row_lower['cp_firm_name']) : ''),
+                                'cp_name' => isset($row_lower['channel partner name']) ? sanitize_text_field($row_lower['channel partner name']) : (isset($row_lower['cp_name']) ? sanitize_text_field($row_lower['cp_name']) : ''),
+                                'cp_contact' => isset($row_lower['channel partner contact']) ? sanitize_text_field($row_lower['channel partner contact']) : (isset($row_lower['cp_contact']) ? sanitize_text_field($row_lower['cp_contact']) : ''),
+                                'lead_status' => isset($row_lower['status rating']) ? sanitize_text_field($row_lower['status rating']) : (isset($row_lower['lead_status']) ? sanitize_text_field($row_lower['lead_status']) : (isset($row_lower['lead']) ? sanitize_text_field($row_lower['lead']) : '')),
+                                'sourcing_manager' => isset($row_lower['sourcing manager']) ? sanitize_text_field($row_lower['sourcing manager']) : (isset($row_lower['sourcing_manager']) ? sanitize_text_field($row_lower['sourcing_manager']) : ''),
+                                'pre_sales' => isset($row_lower['pre-sales']) ? sanitize_text_field($row_lower['pre-sales']) : (isset($row_lower['pre_sales']) ? sanitize_text_field($row_lower['pre_sales']) : ''),
+                                'client_age' => isset($row_lower['client age']) ? sanitize_text_field($row_lower['client age']) : (isset($row_lower['client_age']) ? sanitize_text_field($row_lower['client_age']) : ''),
+                                'visit_type' => isset($row_lower['visit frequency']) ? sanitize_text_field($row_lower['visit frequency']) : (isset($row_lower['visit_type']) ? sanitize_text_field($row_lower['visit_type']) : ''),
+                                'visit_attended_by' => isset($row_lower['visit attended by']) ? sanitize_text_field($row_lower['visit attended by']) : (isset($row_lower['visit_attended_by']) ? sanitize_text_field($row_lower['visit_attended_by']) : ''),
+                                'funding_source' => isset($row_lower['funding option']) ? sanitize_text_field($row_lower['funding option']) : (isset($row_lower['funding_source']) ? sanitize_text_field($row_lower['funding_source']) : ''),
+                                'sop_amount' => isset($row_lower['sop amount']) ? sanitize_text_field($row_lower['sop amount']) : (isset($row_lower['sop_amount']) ? sanitize_text_field($row_lower['sop_amount']) : ''),
+                                'ready_down_payment' => isset($row_lower['ready down payment']) ? sanitize_text_field($row_lower['ready down payment']) : (isset($row_lower['ready_down_payment']) ? sanitize_text_field($row_lower['ready_down_payment']) : ''),
+                                'own_contribution' => isset($row_lower['own contribution']) ? sanitize_text_field($row_lower['own contribution']) : (isset($row_lower['own_contribution']) ? sanitize_text_field($row_lower['own_contribution']) : ''),
+                                'unit_like' => isset($row_lower['preferred unit']) ? sanitize_text_field($row_lower['preferred unit']) : (isset($row_lower['unit_like']) ? sanitize_text_field($row_lower['unit_like']) : ''),
+                                'unit_floor' => isset($row_lower['preferred floor']) ? sanitize_text_field($row_lower['preferred floor']) : (isset($row_lower['unit_floor']) ? sanitize_text_field($row_lower['unit_floor']) : ''),
+                                'unit_budget' => isset($row_lower['preferred budget']) ? sanitize_text_field($row_lower['preferred budget']) : (isset($row_lower['unit_budget']) ? sanitize_text_field($row_lower['unit_budget']) : ''),
+                                'feedback_by' => isset($row_lower['feedback by']) ? sanitize_text_field($row_lower['feedback by']) : (isset($row_lower['feedback_by']) ? sanitize_text_field($row_lower['feedback_by']) : ''),
+                                'feedback_details' => isset($row_lower['feedback details']) ? sanitize_text_field($row_lower['feedback details']) : (isset($row_lower['feedback_details']) ? sanitize_text_field($row_lower['feedback_details']) : ''),
+                                's_m' => isset($row_lower['action owner']) ? sanitize_text_field($row_lower['action owner']) : (isset($row_lower['s_m']) ? sanitize_text_field($row_lower['s_m']) : ''),
+                                'created_at' => current_time('mysql'),
+                            );
+                            
+                            $wpdb->insert($table_name, $insert_data);
+                            $imported++;
+                        }
+                        
+                        set_transient('crm_import_results', array('imported' => $imported, 'skipped' => $skipped, 'duplicates' => $duplicates, 'debug' => $debug_log), 60);
+                        wp_redirect(admin_url('admin.php?page=crm-enquiries&import_success=1'));
+                        exit;
+                    } else {
+                        wp_redirect(admin_url('admin.php?page=crm-enquiries&import_error=invalid_format'));
+                        exit;
+                    }
+                } else {
+                    wp_redirect(admin_url('admin.php?page=crm-enquiries&import_error=read_error'));
+                    exit;
+                }
+            } else {
+                wp_redirect(admin_url('admin.php?page=crm-enquiries&import_error=empty_file'));
+                exit;
+            }
         }
     }
 }
@@ -750,7 +898,45 @@ function crm_enquiries_page_html() {
     </style>';
     echo '<h1 class="wp-heading-inline">Enquiries</h1>';
     echo '<a href="' . esc_url($export_url) . '" class="page-title-action">Export CSV</a>';
+    echo '<form method="post" enctype="multipart/form-data" action="' . admin_url('admin.php?page=crm-enquiries') . '" style="display:inline-block; margin-left:10px;">';
+    wp_nonce_field('import_csv_enquiries');
+    echo '<input type="hidden" name="action" value="import_csv">';
+    echo '<input type="file" name="import_file" accept=".csv" style="display:none;" id="import_csv_file" onchange="this.form.submit()">';
+    echo '<label for="import_csv_file" class="page-title-action" style="cursor:pointer; margin-left:0;">Import CSV</label>';
+    echo '</form>';
     echo '<hr class="wp-header-end">';
+
+    if (isset($_GET['import_success'])) {
+        $import_results = get_transient('crm_import_results');
+        if ($import_results !== false) {
+            echo '<div class="notice notice-success is-dismissible"><p>Successfully imported <strong>' . intval($import_results['imported']) . '</strong> leads.</p></div>';
+            if ($import_results['skipped'] > 0) {
+                echo '<div class="notice notice-warning is-dismissible"><p>Skipped <strong>' . intval($import_results['skipped']) . '</strong> duplicates (Name and Contact already exist):</p>';
+                echo '<ul style="margin-left: 20px; list-style-type: disc;">';
+                foreach ($import_results['duplicates'] as $dup) {
+                    echo '<li>' . esc_html($dup) . '</li>';
+                }
+                echo '</ul></div>';
+            }
+            if ($import_results['imported'] === 0 && $import_results['skipped'] === 0) {
+                echo '<div class="notice notice-error is-dismissible"><p>Debug Log: <br><pre>' . esc_html(print_r($import_results['debug'], true)) . '</pre></p></div>';
+            }
+            delete_transient('crm_import_results');
+        }
+    }
+
+    if (isset($_GET['import_error'])) {
+        $error_type = sanitize_text_field($_GET['import_error']);
+        $error_msg = 'Unknown error occurred during import.';
+        if ($error_type === 'invalid_format') {
+            $error_msg = 'Invalid CSV format or missing headers. Please ensure you are uploading a valid CSV file.';
+        } elseif ($error_type === 'read_error') {
+            $error_msg = 'Failed to read the uploaded file. Please try again.';
+        } elseif ($error_type === 'empty_file') {
+            $error_msg = 'No file was uploaded or the file was empty.';
+        }
+        echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_msg) . '</p></div>';
+    }
 
     if (isset($_GET['deleted'])) {
         echo '<div class="notice notice-success is-dismissible"><p>Enquiry deleted.</p></div>';
@@ -763,6 +949,12 @@ function crm_enquiries_page_html() {
     }
     if (isset($_GET['bulk_assigned'])) {
         echo '<div class="notice notice-success is-dismissible"><p>Successfully assigned ' . intval($_GET['bulk_assigned']) . ' enquiries to the selected Closing Manager.</p></div>';
+    }
+    if (isset($_GET['bulk_assigned_project'])) {
+        echo '<div class="notice notice-success is-dismissible"><p>Successfully assigned ' . intval($_GET['bulk_assigned_project']) . ' enquiries to the selected Project.</p></div>';
+    }
+    if (isset($_GET['bulk_error'])) {
+        echo '<div class="notice notice-error is-dismissible"><p>Bulk action failed: ' . esc_html($_GET['bulk_error']) . '</p></div>';
     }
 
     echo '<form method="get" style="margin-top: 1rem; display:flex; gap:15px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap;">';
@@ -855,9 +1047,10 @@ function crm_enquiries_page_html() {
     
     echo '<div class="tablenav top" style="margin-bottom: 10px;">';
     echo '<div class="alignleft actions bulkactions">';
-    echo '<select name="bulk_action" id="bulk-action-selector" onchange="document.getElementById(\'bulk_assign_cm_id\').style.display = (this.value === \'assign_cm\') ? \'inline-block\' : \'none\';">';
+    echo '<select name="bulk_action" id="bulk-action-selector" onchange="document.getElementById(\'bulk_assign_cm_id\').style.display = (this.value === \'assign_cm\') ? \'inline-block\' : \'none\'; document.getElementById(\'bulk_assign_project\').style.display = (this.value === \'assign_project\') ? \'inline-block\' : \'none\';">';
     echo '<option value="-1">Bulk actions</option>';
     echo '<option value="assign_cm">Assign Closing Manager</option>';
+    echo '<option value="assign_project">Assign Project</option>';
     echo '<option value="delete">Delete</option>';
     echo '</select>';
     
@@ -874,8 +1067,21 @@ function crm_enquiries_page_html() {
         }
     }
     echo '</select>';
+    
+    echo '<select name="bulk_assign_project" id="bulk_assign_project" style="display:none; margin-left: 5px;">';
+    echo '<option value="">Select Project...</option>';
+    $all_projects = crm_get_projects();
+    if (!empty($all_projects)) {
+        foreach ($all_projects as $proj) {
+            $proj_name = is_array($proj) && isset($proj['name']) ? $proj['name'] : (is_string($proj) ? $proj : '');
+            if (!empty($proj_name)) {
+                echo '<option value="' . esc_attr($proj_name) . '">' . esc_html($proj_name) . '</option>';
+            }
+        }
+    }
+    echo '</select>';
 
-    echo '<input type="submit" id="doaction" class="button action" style="margin-left: 5px;" value="Apply" onclick="var action = document.querySelector(\'#bulk-action-selector\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'assign_cm\') { if(!document.getElementById(\'bulk_assign_cm_id\').value) { alert(\'Please select a Closing Manager to assign.\'); return false; } } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
+    echo '<input type="submit" id="doaction" class="button action" style="margin-left: 5px;" value="Apply" onclick="var action = document.querySelector(\'#bulk-action-selector\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'assign_cm\') { if(!document.getElementById(\'bulk_assign_cm_id\').value) { alert(\'Please select a Closing Manager to assign.\'); return false; } } else if(action == \'assign_project\') { if(!document.getElementById(\'bulk_assign_project\').value) { alert(\'Please select a Project to assign.\'); return false; } } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
     echo '</div>';
     
     $total_items = is_array($results) ? count($results) : 0;
