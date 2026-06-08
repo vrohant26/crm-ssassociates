@@ -335,6 +335,9 @@ function crm_export_enquiries_csv() {
         $where_clauses = array();
         $prepare_args = array();
 
+        $cm_filter = isset($_GET['cm_id']) ? intval($_GET['cm_id']) : 0;
+        $status_filter = isset($_GET['lead_status']) ? sanitize_text_field($_GET['lead_status']) : '';
+
         if (!empty($search)) {
             $where_clauses[] = "(name LIKE %s OR email LIKE %s OR contact LIKE %s)";
             $prepare_args[] = '%' . $search . '%';
@@ -358,6 +361,22 @@ function crm_export_enquiries_csv() {
             } else {
                 $where_clauses[] = "building_name = %s";
                 $prepare_args[] = $project_filter;
+            }
+        }
+
+        if ($cm_filter > 0) {
+            $where_clauses[] = "closing_manager_id = %d";
+            $prepare_args[] = $cm_filter;
+        } elseif ($cm_filter === -1) {
+            $where_clauses[] = "(closing_manager_id = 0 OR closing_manager_id IS NULL)";
+        }
+
+        if (!empty($status_filter)) {
+            if ($status_filter === 'Not Rated') {
+                $where_clauses[] = "(lead_status = '' OR lead_status IS NULL)";
+            } else {
+                $where_clauses[] = "lead_status = %s";
+                $prepare_args[] = $status_filter;
             }
         }
 
@@ -836,6 +855,8 @@ function crm_enquiries_page_html() {
     if ($cm_filter > 0) {
         $where_clauses[] = "closing_manager_id = %d";
         $prepare_args[] = $cm_filter;
+    } elseif ($cm_filter === -1) {
+        $where_clauses[] = "(closing_manager_id = 0 OR closing_manager_id IS NULL)";
     }
 
     if (!empty($status_filter)) {
@@ -957,6 +978,23 @@ function crm_enquiries_page_html() {
         echo '<div class="notice notice-error is-dismissible"><p>Bulk action failed: ' . esc_html($_GET['bulk_error']) . '</p></div>';
     }
 
+    echo '<script>
+        if (window.history.replaceState) {
+            const url = new URL(window.location.href);
+            const paramsToRemove = ["import_success", "import_error", "deleted", "updated", "bulk_deleted", "bulk_assigned", "bulk_assigned_project", "bulk_error"];
+            let hasRemoved = false;
+            paramsToRemove.forEach(param => {
+                if (url.searchParams.has(param)) {
+                    url.searchParams.delete(param);
+                    hasRemoved = true;
+                }
+            });
+            if (hasRemoved) {
+                window.history.replaceState(null, "", url.href);
+            }
+        }
+    </script>';
+
     echo '<form method="get" style="margin-top: 1rem; display:flex; gap:15px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap;">';
     echo '<input type="hidden" name="page" value="crm-enquiries">';
     
@@ -999,6 +1037,7 @@ function crm_enquiries_page_html() {
     echo '<label style="display:block; margin-bottom:5px;" for="cm_id_filter">Closing Manager:</label>';
     echo '<select id="cm_id_filter" name="cm_id" style="padding: 3px 8px; height: 28px; width:130px">';
     echo '<option value="0">All Managers</option>';
+    echo '<option value="-1"' . selected($cm_filter, -1, false) . '>Not Assigned</option>';
     $closing_managers_filter = get_users(array(
         'role' => 'crm_closing_manager',
         'orderby' => 'display_name',
