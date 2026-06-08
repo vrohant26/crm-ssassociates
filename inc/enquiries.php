@@ -875,7 +875,7 @@ function crm_enquiries_page_html() {
         }
     }
 
-    $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY id DESC");
+    $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY date_visit DESC, id DESC");
 
     $export_url = add_query_arg(array(
         'page' => 'crm-enquiries',
