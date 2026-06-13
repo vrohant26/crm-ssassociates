@@ -1100,7 +1100,7 @@ get_header();
             </div>
         </div>
 
-        <div class="form-grid">
+        <div class="form-grid" id="action-fields-container" <?php if ($rating === 'Lost') echo 'style="display: none;"'; ?>>
             <div class="input-group full-width">
                 <label>Action Date</label>
                 <input type="date" name="next_action_date" id="form-next-date" value="<?php echo esc_attr(($single_client->next_action_date && $single_client->next_action_date !== '0000-00-00') ? $single_client->next_action_date : ''); ?>">
@@ -1196,6 +1196,17 @@ get_header();
                                     pills.forEach(p => p.classList.remove('active'));
                                     this.classList.add('active');
                                     hiddenInput.value = this.dataset.value;
+                                    
+                                    if (containerId === 'rating-pills') {
+                                        const actionContainer = document.getElementById('action-fields-container');
+                                        if (actionContainer) {
+                                            if (this.dataset.value === 'Lost') {
+                                                actionContainer.style.display = 'none';
+                                            } else {
+                                                actionContainer.style.display = 'grid';
+                                            }
+                                        }
+                                    }
                                 });
                             });
                         }
