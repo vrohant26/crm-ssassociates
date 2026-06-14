@@ -45,6 +45,7 @@ function crm_create_enquiries_table() {
         s_m varchar(255) DEFAULT '' NOT NULL,
         next_action_date date DEFAULT '0000-00-00' NOT NULL,
         next_action_remarks text NOT NULL,
+        lost_reason text NOT NULL,
         assessment_saved tinyint(1) DEFAULT 0 NOT NULL,
         PRIMARY KEY  (id)
     ) $charset_collate;";
@@ -90,6 +91,14 @@ function crm_create_enquiries_table() {
     ));
     if (empty($column_cpf)) {
         $wpdb->query("ALTER TABLE $table_name ADD cp_firm_name varchar(255) DEFAULT '' NOT NULL AFTER reference_name");
+    }
+    // Safety check for lost_reason
+    $column_lost = $wpdb->get_results($wpdb->prepare(
+        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+        DB_NAME, $table_name, 'lost_reason'
+    ));
+    if (empty($column_lost)) {
+        $wpdb->query("ALTER TABLE $table_name ADD lost_reason text NOT NULL AFTER next_action_remarks");
     }
     
     add_option('crm_db_version', '1.0');
@@ -2751,6 +2760,7 @@ function crm_handle_save_closing_manager_sheet() {
         's_m' => isset($_POST['s_m']) ? sanitize_text_field($_POST['s_m']) : '',
         'next_action_date' => !empty($_POST['next_action_date']) ? sanitize_text_field($_POST['next_action_date']) : '0000-00-00',
         'next_action_remarks' => sanitize_textarea_field($_POST['next_action_remarks']),
+        'lost_reason' => isset($_POST['lost_reason']) ? sanitize_textarea_field($_POST['lost_reason']) : '',
     );
 
     $can_override = current_user_can('manage_options') || in_array('crm_site_head', (array) $user->roles) || in_array('crm_site_head_master', (array) $user->roles);

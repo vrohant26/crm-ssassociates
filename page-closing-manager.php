@@ -1100,6 +1100,13 @@ get_header();
             </div>
         </div>
 
+        <div class="form-grid" id="lost-reason-container" <?php if ($rating !== 'Lost') echo 'style="display: none;"'; ?>>
+            <div class="input-group full-width">
+                <label>Reason for Lost</label>
+                <textarea name="lost_reason" id="form-lost-reason" rows="3" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; background: var(--bg-color); color: var(--text-dark); box-sizing: border-box; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.background='white';" onblur="this.style.borderColor='var(--border-color)'; this.style.background='var(--bg-color)';"><?php echo esc_html($single_client->lost_reason ?? ''); ?></textarea>
+            </div>
+        </div>
+
         <div class="form-grid" id="action-fields-container" <?php if ($rating === 'Lost') echo 'style="display: none;"'; ?>>
             <div class="input-group full-width">
                 <label>Action Date</label>
@@ -1199,11 +1206,14 @@ get_header();
                                     
                                     if (containerId === 'rating-pills') {
                                         const actionContainer = document.getElementById('action-fields-container');
-                                        if (actionContainer) {
+                                        const lostContainer = document.getElementById('lost-reason-container');
+                                        if (actionContainer && lostContainer) {
                                             if (this.dataset.value === 'Lost') {
                                                 actionContainer.style.display = 'none';
+                                                lostContainer.style.display = 'grid';
                                             } else {
                                                 actionContainer.style.display = 'grid';
+                                                lostContainer.style.display = 'none';
                                             }
                                         }
                                     }
