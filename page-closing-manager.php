@@ -96,7 +96,7 @@ get_header();
                 global $wpdb;
                 $table_name = $wpdb->prefix . 'crm_enquiries';
 
-                $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+                $search = isset($_GET['client_search']) ? sanitize_text_field($_GET['client_search']) : '';
                 $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
                 $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
                 $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
@@ -305,7 +305,7 @@ get_header();
                 <form method="get" class="crm-filter-bar" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
                     <div class="filter-group" style="display: flex; flex-direction: column; min-width: 200px; flex-grow: 1;">
                         <label style="font-weight: 600; font-size: 0.8rem; margin-bottom: 6px; color: #1e293b; text-transform: uppercase;">Search Client</label>
-                        <input type="search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search name or contact..." style="padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; background: #f8fafc; outline: none;">
+                        <input type="search" name="client_search" value="<?php echo esc_attr($search); ?>" placeholder="Search name or contact..." style="padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; background: #f8fafc; outline: none;">
                     </div>
 
                     <div class="filter-group" style="display: flex; flex-direction: column; min-width: 150px; flex-grow: 1;">

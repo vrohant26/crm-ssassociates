@@ -218,6 +218,7 @@
                     <button type="button" class="pill" data-value="Website">Website</button>
                     <button type="button" class="pill" data-value="Reference">Reference</button>
                     <button type="button" class="pill" data-value="Channel Partner">Channel Partner</button>
+                    <button type="button" class="pill" data-value="Direct">Direct</button>
                 </div>
                 <input type="hidden" name="source" id="source-input" required>
                 

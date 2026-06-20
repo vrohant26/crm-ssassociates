@@ -346,6 +346,7 @@ function crm_export_enquiries_csv() {
 
         $cm_filter = isset($_GET['cm_id']) ? intval($_GET['cm_id']) : 0;
         $status_filter = isset($_GET['lead_status']) ? sanitize_text_field($_GET['lead_status']) : '';
+        $source_filter = isset($_GET['source']) ? sanitize_text_field($_GET['source']) : '';
 
         if (!empty($search)) {
             $where_clauses[] = "(name LIKE %s OR email LIKE %s OR contact LIKE %s)";
@@ -387,6 +388,11 @@ function crm_export_enquiries_csv() {
                 $where_clauses[] = "lead_status = %s";
                 $prepare_args[] = $status_filter;
             }
+        }
+
+        if (!empty($source_filter)) {
+            $where_clauses[] = "source = %s";
+            $prepare_args[] = $source_filter;
         }
 
         $where = '';
@@ -807,6 +813,7 @@ function crm_enquiries_page_html() {
     $project_filter = isset($_GET['building_name']) ? sanitize_text_field($_GET['building_name']) : '';
     $cm_filter = isset($_GET['cm_id']) ? intval($_GET['cm_id']) : 0;
     $status_filter = isset($_GET['lead_status']) ? sanitize_text_field($_GET['lead_status']) : '';
+    $source_filter = isset($_GET['source']) ? sanitize_text_field($_GET['source']) : '';
     
     $where_clauses = array();
     $prepare_args = array();
@@ -877,6 +884,11 @@ function crm_enquiries_page_html() {
         }
     }
 
+    if (!empty($source_filter)) {
+        $where_clauses[] = "source = %s";
+        $prepare_args[] = $source_filter;
+    }
+
     $current_user = wp_get_current_user();
     // Restrict Site Managers to only see their assigned projects
     if (in_array('site_manager', (array)$current_user->roles) && !current_user_can('manage_options') && !in_array('crm_site_head_master', (array)$current_user->roles)) {
@@ -905,7 +917,15 @@ function crm_enquiries_page_html() {
         }
     }
 
-    $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY date_visit DESC, id DESC");
+    // Pagination calculations
+    $limit = 20;
+    $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+    $offset = ($current_page - 1) * $limit;
+    
+    $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $table_name $where");
+    $total_pages = ceil($total_items / $limit);
+
+    $results = $wpdb->get_results("SELECT * FROM $table_name $where ORDER BY date_visit DESC, id DESC LIMIT " . intval($limit) . " OFFSET " . intval($offset));
 
     $export_url = add_query_arg(array(
         'page' => 'crm-enquiries',
@@ -915,7 +935,8 @@ function crm_enquiries_page_html() {
         'date_to' => $date_to,
         'building_name' => $project_filter,
         'cm_id' => $cm_filter,
-        'lead_status' => $status_filter
+        'lead_status' => $status_filter,
+        'source' => $source_filter
     ), admin_url('admin.php'));
 
     echo '<div class="wrap">';
@@ -1004,7 +1025,7 @@ function crm_enquiries_page_html() {
         }
     </script>';
 
-    echo '<form method="get" style="margin-top: 1rem; display:flex; gap:15px; align-items:flex-end; margin-bottom:15px; flex-wrap:wrap;">';
+    echo '<form method="get" style="margin-top: 1rem; display:flex; gap:15px; align-items:flex-end; margin-bottom: 30px; flex-wrap:wrap;">';
     echo '<input type="hidden" name="page" value="crm-enquiries">';
     
     echo '<div>';
@@ -1072,6 +1093,17 @@ function crm_enquiries_page_html() {
     echo '</div>';
     
     echo '<div>';
+    echo '<label style="display:block; margin-bottom:5px;" for="source_filter">Source:</label>';
+    echo '<select id="source_filter" name="source" style="padding: 3px 8px; height: 28px; width: 120px">';
+    echo '<option value="">All Sources</option>';
+    $sources = array('Newspaper', 'Hoarding', 'SMS', 'Website', 'Reference', 'Channel Partner', 'Direct');
+    foreach ($sources as $src) {
+        echo '<option value="' . esc_attr($src) . '"' . selected($source_filter, $src, false) . '>' . esc_html($src) . '</option>';
+    }
+    echo '</select>';
+    echo '</div>';
+    
+    echo '<div>';
     echo '<label style="display:block; margin-bottom:5px;" for="date_from">From Date:</label>';
     echo '<input type="date" id="date_from" name="date_from" value="' . esc_attr($date_from) . '">';
     echo '</div>';
@@ -1083,7 +1115,7 @@ function crm_enquiries_page_html() {
 
     echo '<div>';
     echo '<input type="submit" id="search-submit" class="button button-primary" value="Filter">';
-    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter) || $cm_filter > 0 || !empty($status_filter)) {
+    if (!empty($search) || !empty($date_from) || !empty($date_to) || !empty($project_filter) || $cm_filter > 0 || !empty($status_filter) || !empty($source_filter)) {
         echo ' <a href="?page=crm-enquiries" class="button">Clear</a>';
     }
     echo '</div>';
@@ -1093,7 +1125,7 @@ function crm_enquiries_page_html() {
     echo '<form method="post" action="' . admin_url('admin.php?page=crm-enquiries') . '">';
     wp_nonce_field('bulk_actions_enquiries');
     
-    echo '<div class="tablenav top" style="margin-bottom: 10px;">';
+    echo '<div class="tablenav top" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; width: 100%;">';
     echo '<div class="alignleft actions bulkactions">';
     echo '<select name="bulk_action" id="bulk-action-selector" onchange="document.getElementById(\'bulk_assign_cm_id\').style.display = (this.value === \'assign_cm\') ? \'inline-block\' : \'none\'; document.getElementById(\'bulk_assign_project\').style.display = (this.value === \'assign_project\') ? \'inline-block\' : \'none\';">';
     echo '<option value="-1">Bulk actions</option>';
@@ -1131,9 +1163,24 @@ function crm_enquiries_page_html() {
 
     echo '<input type="submit" id="doaction" class="button action" style="margin-left: 5px;" value="Apply" onclick="var action = document.querySelector(\'#bulk-action-selector\').value; if(action == \'delete\') { return confirm(\'Are you sure you want to delete the selected enquiries?\'); } else if(action == \'assign_cm\') { if(!document.getElementById(\'bulk_assign_cm_id\').value) { alert(\'Please select a Closing Manager to assign.\'); return false; } } else if(action == \'assign_project\') { if(!document.getElementById(\'bulk_assign_project\').value) { alert(\'Please select a Project to assign.\'); return false; } } else if(action == \'-1\') { alert(\'Please select an action.\'); return false; }">';
     echo '</div>';
-    
-    $total_items = is_array($results) ? count($results) : 0;
-    echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
+    // Top tablenav pages
+    $page_links = paginate_links(array(
+        'base' => add_query_arg('paged', '%#%'),
+        'format' => '',
+        'prev_text' => __('&laquo;'),
+        'next_text' => __('&raquo;'),
+        'total' => $total_pages,
+        'current' => $current_page,
+        'type' => 'plain'
+    ));
+
+    $pagination_class = ($total_pages <= 1) ? ' one-page' : '';
+    echo '<div class="tablenav-pages' . $pagination_class . '">';
+    echo '<span class="displaying-num">' . sprintf(_n('%s item', '%s items', $total_items, 'crm'), number_format_i18n($total_items)) . '</span>';
+    if ($page_links) {
+        echo '<span class="pagination-links">' . $page_links . '</span>';
+    }
+    echo '</div>';
     echo '</div>';
 
     echo '<div class="crm-table-responsive" style="overflow-x: auto; width: 100%; margin-bottom: 15px;">';
@@ -1218,8 +1265,26 @@ function crm_enquiries_page_html() {
     echo '</tbody></table>';
     echo '</div>';
     
-    echo '<div class="tablenav bottom" style="margin-top: 10px;">';
-    echo '<div class="tablenav-pages one-page"><span class="displaying-num">' . $total_items . ' items</span></div>';
+    echo '<div class="tablenav bottom" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; width: 100%;">';
+    
+    // Bottom tablenav pages
+    $page_links_bottom = paginate_links(array(
+        'base' => add_query_arg('paged', '%#%'),
+        'format' => '',
+        'prev_text' => __('&laquo;'),
+        'next_text' => __('&raquo;'),
+        'total' => $total_pages,
+        'current' => $current_page,
+        'type' => 'plain'
+    ));
+
+    $pagination_class_bottom = ($total_pages <= 1) ? ' one-page' : '';
+    echo '<div class="tablenav-pages' . $pagination_class_bottom . '">';
+    echo '<span class="displaying-num">' . sprintf(_n('%s item', '%s items', $total_items, 'crm'), number_format_i18n($total_items)) . '</span>';
+    if ($page_links_bottom) {
+        echo '<span class="pagination-links">' . $page_links_bottom . '</span>';
+    }
+    echo '</div>';
     echo '</div>';
     
     echo '</form>';
