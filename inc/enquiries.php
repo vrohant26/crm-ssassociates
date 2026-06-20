@@ -602,6 +602,7 @@ function crm_handle_enquiries_crud() {
                 'closing_manager_id' => isset($_POST['closing_manager_id']) ? intval($_POST['closing_manager_id']) : 0,
                 'sourcing_manager' => isset($_POST['sourcing_manager']) ? sanitize_text_field($_POST['sourcing_manager']) : '',
                 'pre_sales' => isset($_POST['pre_sales']) ? sanitize_text_field($_POST['pre_sales']) : '',
+                'visit_type' => isset($_POST['visit_type']) ? sanitize_text_field($_POST['visit_type']) : '',
             );
 
             $wpdb->update($table_name, $data, array('id' => intval($_POST['id'])));
@@ -781,6 +782,13 @@ function crm_enquiries_page_html() {
                     echo '<option value="' . esc_attr($manager->ID) . '"' . selected($enquiry->closing_manager_id, $manager->ID, false) . '>' . esc_html($manager->display_name) . '</option>';
                 }
             }
+            echo '</select></td></tr>';
+            echo '<tr><th scope="row"><label for="visit_type">Visit Frequency</label></th><td>';
+            echo '<select name="visit_type" id="visit_type" class="regular-text">';
+            echo '<option value=""' . selected($enquiry->visit_type, '', false) . '>Not Selected</option>';
+            echo '<option value="First visit"' . selected($enquiry->visit_type, 'First visit', false) . '>First Visit</option>';
+            echo '<option value="Revisit"' . selected($enquiry->visit_type, 'Revisit', false) . '>Revisit</option>';
+            echo '<option value="Multi visit"' . selected($enquiry->visit_type, 'Multi visit', false) . '>Multi Visit</option>';
             echo '</select></td></tr>';
             echo '<tr><th scope="row"><label for="sourcing_manager">Sourcing Manager</label></th><td><input name="sourcing_manager" type="text" id="sourcing_manager" value="' . esc_attr($enquiry->sourcing_manager) . '" class="regular-text"></td></tr>';
             echo '<tr><th scope="row"><label for="pre_sales">Pre-sales</label></th><td><input name="pre_sales" type="text" id="pre_sales" value="' . esc_attr($enquiry->pre_sales) . '" class="regular-text"></td></tr>';
