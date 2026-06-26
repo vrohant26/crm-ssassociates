@@ -370,6 +370,13 @@ get_header();
                                     if (strlen($next_action_remarks_display) > 40) {
                                         $next_action_remarks_display = substr($next_action_remarks_display, 0, 37) . '...';
                                     }
+
+                                    // Lost Lead details
+                                    $is_lost = (!empty($row->lead_status) && strcasecmp($row->lead_status, 'Lost') === 0);
+                                    $lost_reason_display = !empty($row->lost_reason) ? esc_html($row->lost_reason) : 'No reason specified';
+                                    if (strlen($lost_reason_display) > 45) {
+                                        $lost_reason_display = substr($lost_reason_display, 0, 42) . '...';
+                                    }
                                     ?>
                                     <tr id="client-row-<?php echo esc_attr($row->id); ?>" style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#fafafb';" onmouseout="this.style.background='transparent';">
                                         <td data-label="Date Visit"><?php echo esc_html(date('d M Y', strtotime($row->date_visit))); ?></td>
@@ -383,8 +390,12 @@ get_header();
                                         </td>
                                         <td data-label="Status"><span class="status-pill <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_lbl); ?></span></td>
                                         <td data-label="Next Action">
-                                            <strong style="color: #1e293b; font-size: 0.85rem; display: block;"><?php echo esc_html($next_action_date_display); ?></strong>
-                                            <span style="font-size: 0.8rem; color: #64748b;"><?php echo esc_html($next_action_remarks_display); ?></span>
+                                            <?php if ($is_lost) : ?>
+                                                <span style="font-size: 0.8rem; color: #475569; font-style: italic;" title="<?php echo esc_attr($row->lost_reason); ?>"><?php echo $lost_reason_display; ?></span>
+                                            <?php else : ?>
+                                                <strong style="color: #1e293b; font-size: 0.85rem; display: block;"><?php echo esc_html($next_action_date_display); ?></strong>
+                                                <span style="font-size: 0.8rem; color: #64748b;" title="<?php echo esc_attr($row->next_action_remarks); ?>"><?php echo esc_html($next_action_remarks_display); ?></span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <a href="?client_id=<?php echo esc_attr($row->id); ?>" class="crm-btn-details-icon" title="View Details">
